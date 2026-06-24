@@ -167,9 +167,13 @@ socio-desk/
 
 **GitHub:** https://github.com/jaimevendrame/socio-desk
 
-**Branch atual:** `feature/m1-foundation`
+**Branch atual:** `main`
 
 **Commits:**
+- `50aa452` - feat: completar M4 - Calendário interativo
+- `9d3b1a7` - fix: corrigir formulário e lista de reservas
+- `c33966f` - feat: M4 - Reservations Core
+- `d91142c` - feat: M3 - Backend Essentials - Authentication & API Routes
 - `c37949a` - feat: M2 - Interface Core
 - `9ddb56d` - feat: M1 - Foundation
 - `ceb3435` - Initial commit from Create Next App
