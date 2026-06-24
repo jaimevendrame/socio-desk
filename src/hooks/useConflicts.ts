@@ -1,10 +1,20 @@
-import { useState, useCallback, useEffect } from 'react';
-import { db } from '@/lib/db/client';
-import { reservations, members } from '@/lib/db/schema';
-import { and, eq, isNull } from 'drizzle-orm';
-import { type z } from 'zod';
-import { checkConflict } from '@/lib/reservations/conflicts';
-import type { ConflictCheck } from '@/lib/reservations/schema';
+import { useState, useCallback } from 'react';
+import { buildApiUrl } from '@/lib/context/tenant-context';
+
+interface ConflictCheckResult {
+  hasConflict: boolean;
+  conflictingReservations: Array<{
+    id: string;
+    memberName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+  }>;
+  availableSlots: Array<{
+    start: string;
+    end: string;
+  }>;
+}
 
 interface UseConflictCheckOptions {
   spaceId?: string;
@@ -16,19 +26,20 @@ interface UseConflictCheckOptions {
 }
 
 interface UseConflictCheckResult {
-  conflict: ConflictCheck | null;
+  conflict: ConflictCheckResult | null;
   loading: boolean;
   error: Error | null;
   check: (params: UseConflictCheckOptions) => Promise<void>;
 }
 
 export function useConflictCheck(): UseConflictCheckResult {
-  const [conflict, setConflict] = useState<ConflictCheck | null>(null);
+  const [conflict, setConflict] = useState<ConflictCheckResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const checkConflicts = useCallback(async (params: UseConflictCheckOptions) => {
+  const check = useCallback(async (params: UseConflictCheckOptions) => {
     if (!params.spaceId || !params.date || !params.startTime || !params.endTime || !params.tenantId) {
+      setConflict(null);
       return;
     }
 
@@ -36,18 +47,31 @@ export function useConflictCheck(): UseConflictCheckResult {
     setError(null);
 
     try {
-      const result = await checkConflict({
+      const searchParams = new URLSearchParams({
+        tenantId: params.tenantId,
         spaceId: params.spaceId,
         date: params.date,
         startTime: params.startTime,
         endTime: params.endTime,
-        tenantId: params.tenantId,
-        excludeReservationId: params.excludeReservationId,
       });
 
+      if (params.excludeReservationId) {
+        searchParams.set('excludeReservationId', params.excludeReservationId);
+      }
+
+      const url = buildApiUrl(`/api/reservations/check-conflict?${searchParams.toString()}`);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error('Erro ao verificar conflitos');
+      }
+
+      const result = await response.json();
       setConflict(result);
     } catch (err) {
       setError(err as Error);
+      setConflict(null);
     } finally {
       setLoading(false);
     }
@@ -57,6 +81,6 @@ export function useConflictCheck(): UseConflictCheckResult {
     conflict,
     loading,
     error,
-    check: checkConflicts,
+    check,
   };
 }
