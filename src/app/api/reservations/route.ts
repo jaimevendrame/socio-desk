@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { reservations, spaces } from '@/lib/db/schema';
-import { and, eq, gte, lte, or } from 'drizzle-orm';
+import { reservations, spaces, members } from '@/lib/db/schema';
+import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkConflict } from '@/lib/reservations/conflicts';
-import { requireAuth } from '@/lib/auth/permissions';
 import { generateRecurringDates } from '@/lib/reservations/recurring';
-import { sendReservationConfirmation } from '@/lib/email/reservations';
 import { auditLog } from '@/lib/logging';
 
 const createReservationSchema = z.object({
@@ -62,9 +60,24 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(reservations.status, status as 'pendente' | 'confirmada' | 'cancelada' | 'concluida'));
     }
 
+    // Busca reservas com JOIN para obter nomes
     const result = await db
-      .select()
+      .select({
+        id: reservations.id,
+        spaceId: reservations.spaceId,
+        spaceName: spaces.name,
+        memberId: reservations.memberId,
+        memberName: members.name,
+        date: reservations.date,
+        startTime: reservations.startTime,
+        endTime: reservations.endTime,
+        status: reservations.status,
+        notes: reservations.notes,
+        createdAt: reservations.createdAt,
+      })
       .from(reservations)
+      .leftJoin(spaces, eq(reservations.spaceId, spaces.id))
+      .leftJoin(members, eq(reservations.memberId, members.id))
       .where(and(...conditions))
       .orderBy(reservations.date, reservations.startTime);
 
