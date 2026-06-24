@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db } from '@/lib/db/client';
 import { reservations, spaces } from '@/lib/db/schema';
-import { eq, and, gte, lte, or } from 'drizzle-orm';
+import { and, eq, gte, lte, or } from 'drizzle-orm';
 import { z } from 'zod';
+import { checkConflict } from '@/lib/reservations/conflicts';
+import { requireAuth } from '@/lib/auth/permissions';
+import { generateRecurringDates } from '@/lib/reservations/recurring';
+import { sendReservationConfirmation } from '@/lib/email/reservations';
+import { auditLog } from '@/lib/logging';
 
 const createReservationSchema = z.object({
   tenantId: z.string().uuid(),
@@ -14,7 +19,7 @@ const createReservationSchema = z.object({
   endTime: z.string(),
   notes: z.string().optional(),
   isRecurring: z.boolean().default(false),
-  recurringPattern: z.string().optional(),
+  recurringPattern: z.enum(['daily', 'weekly']).optional(),
   recurringUntil: z.string().optional(),
   amount: z.number().optional(),
   isPaid: z.boolean().default(false),
@@ -76,65 +81,106 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = createReservationSchema.parse(body);
 
-    // Verificar conflito de horários
-    const conflicts = await db
-      .select()
-      .from(reservations)
-      .where(
-        and(
-          eq(reservations.spaceId, validated.spaceId),
-          eq(reservations.date, validated.date),
-          eq(reservations.status, 'confirmada'),
-          // Conflito: startTime < novo endTime AND endTime > novo startTime
-          or(
-            and(lte(reservations.startTime, validated.startTime), gte(reservations.endTime, validated.startTime)),
-            and(lte(reservations.startTime, validated.endTime), gte(reservations.endTime, validated.endTime)),
-            and(gte(reservations.startTime, validated.startTime), lte(reservations.endTime, validated.endTime))
-          )
-        )
-      );
-
-    if (conflicts.length > 0) {
-      return NextResponse.json(
-        { error: 'Conflito de horario', conflicts },
-        { status: 409 }
+    // Se for recorrente, valida e gera datas
+    let dates = [validated.date];
+    if (validated.isRecurring && validated.recurringPattern && validated.recurringUntil) {
+      dates = generateRecurringDates(
+        validated.date,
+        validated.recurringPattern,
+        validated.recurringUntil
       );
     }
 
-    // Buscar custo do espaço se não informado
+    // Busca custo do espaço
     let amount = validated.amount;
-    if (!amount) {
-      const [space] = await db
-        .select()
-        .from(spaces)
-        .where(eq(spaces.id, validated.spaceId));
+    const [space] = await db
+      .select()
+      .from(spaces)
+      .where(eq(spaces.id, validated.spaceId));
 
-      if (space?.hasCost && space?.costAmount) {
-        amount = parseFloat(space.costAmount.toString());
-      }
+    if (!amount && space?.hasCost && space?.costAmount) {
+      amount = parseFloat(space.costAmount.toString());
     }
 
-    const [newReservation] = await db
-      .insert(reservations)
-      .values({
-        tenantId: validated.tenantId,
+    const createdReservations = [];
+
+    // Verifica conflito e cria reserva para cada data
+    for (const reservationDate of dates) {
+      // Usa a função de detecção de conflitos
+      const conflictResult = await checkConflict({
         spaceId: validated.spaceId,
-        memberId: validated.memberId,
-        teamMemberId: validated.teamMemberId,
-        date: validated.date,
+        date: reservationDate,
         startTime: validated.startTime,
         endTime: validated.endTime,
-        notes: validated.notes,
-        isRecurring: validated.isRecurring,
-        recurringPattern: validated.recurringPattern,
-        recurringUntil: validated.recurringUntil,
-        amount: amount?.toString(),
-        isPaid: validated.isPaid,
-        status: 'confirmada',
-      })
-      .returning();
+        tenantId: validated.tenantId,
+      });
 
-    return NextResponse.json(newReservation, { status: 201 });
+      if (conflictResult.hasConflict) {
+        return NextResponse.json(
+          {
+            error: 'Conflito de horário detectado',
+            conflicts: conflictResult.conflictingReservations,
+            failedDate: reservationDate,
+          },
+          { status: 409 }
+        );
+      }
+
+      // Cria a reserva
+      const [newReservation] = await db
+        .insert(reservations)
+        .values({
+          tenantId: validated.tenantId,
+          spaceId: validated.spaceId,
+          memberId: validated.memberId,
+          teamMemberId: validated.teamMemberId,
+          date: reservationDate,
+          startTime: validated.startTime,
+          endTime: validated.endTime,
+          notes: validated.notes,
+          isRecurring: validated.isRecurring,
+          recurringPattern: validated.recurringPattern,
+          recurringUntil: validated.recurringUntil,
+          amount: amount?.toString(),
+          isPaid: validated.isPaid,
+          status: 'confirmada',
+        })
+        .returning();
+
+      createdReservations.push(newReservation);
+
+      // Audit log
+      await auditLog({
+        action: 'CREATE',
+        entity: 'reservation',
+        entityId: newReservation.id,
+        userId: validated.teamMemberId,
+        tenantId: validated.tenantId,
+        changes: {
+          spaceId: validated.spaceId,
+          memberId: validated.memberId,
+          date: reservationDate,
+          startTime: validated.startTime,
+          endTime: validated.endTime,
+        },
+      });
+    }
+
+    // Envia e-mail de confirmação (apenas para a primeira reserva)
+    if (createdReservations.length > 0) {
+      // TODO: Obter e-mail do membro e enviar confirmação
+      // await sendReservationConfirmation({ ... });
+    }
+
+    return NextResponse.json(
+      {
+        data: createdReservations,
+        message: validated.isRecurring
+          ? `${createdReservations.length} reservas criadas com sucesso`
+          : 'Reserva criada com sucesso',
+      },
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.format() }, { status: 400 });
