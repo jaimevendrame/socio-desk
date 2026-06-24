@@ -77,15 +77,24 @@ docker-compose.yml           # Postgres + MinIO
 
 ---
 
-### 📋 M4 - Reservations Core
-**Status:** Pendente
+### ✅ M4 - Reservations Core
+**Status:** Concluído em 24/06/2026
 
-**Entregas planejadas:**
-- [ ] Calendário interativo (dia/semana/mês)
-- [ ] Verificação de conflito de horários
-- [ ] Sistema de buffer entre reservas
-- [ ] Notificações (email/whatsapp)
-- [ ] Reserva recorrente
+**Entregas:**
+- [x] `/escritorio/reservas` - Calendário interativo (dia/semana/mês)
+- [x] `/escritorio/reservas` - Lista de reservas do dia com refresh
+- [x] `/api/reservations` - CRUD completo com validação Zod
+- [x] `/api/spaces/availability` - API de disponibilidade
+- [x] `/api/reservations/check-conflict` - Verificação de conflitos
+- [x] Detecção de conflitos de horário com buffer configurável
+- [x] Sistema de buffer entre reservas (configurável por espaço)
+- [x] Reserva recorrente (diária/semanal)
+- [x] Formulário de reserva com espaço, data, horário, membro
+- [x] Dashboard do escritório conectado ao backend
+- [x] Hooks reutilizáveis (useReservations, useConflicts, useAvailability)
+
+**Pendente (Fase 2):**
+- [ ] Notificações (email/whatsapp) via Brevo
 
 ---
 

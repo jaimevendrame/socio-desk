@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { buildApiUrl } from '@/lib/context/tenant-context';
 
