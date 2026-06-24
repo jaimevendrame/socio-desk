@@ -120,7 +120,7 @@ export default function NewMemberPage() {
                 />
               </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2}>
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="birthDate">Data de Nascimento *</Label>
                 <Input
