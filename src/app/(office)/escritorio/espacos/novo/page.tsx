@@ -12,9 +12,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
+import { useTenant } from '@/lib/context/tenant-context';
 
 export default function NewSpacePage() {
   const router = useRouter();
+  const { tenantId } = useTenant();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -34,14 +36,47 @@ export default function NewSpacePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.name) {
+      toast.error('Preencha o nome do espaco');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success('Espaço criado com sucesso!');
+      const response = await fetch('/api/spaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          name: formData.name,
+          description: formData.description || undefined,
+          category: formData.category as 'esportivo' | 'social' | 'equipamento',
+          openTime: formData.openTime,
+          closeTime: formData.closeTime,
+          bufferMinutes: formData.bufferMinutes,
+          minReservationMinutes: formData.minReservationMinutes,
+          maxReservationMinutes: formData.maxReservationMinutes,
+          maxAdvanceDays: formData.maxAdvanceDays,
+          maxReservationsPerDay: formData.maxReservationsPerDay || undefined,
+          hasCost: formData.hasCost,
+          costAmount: formData.hasCost && formData.costAmount
+            ? parseFloat(formData.costAmount)
+            : undefined,
+          isActive: formData.isActive,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao criar espaco');
+      }
+
+      toast.success('Espaco criado com sucesso!');
       router.push('/escritorio/espacos');
-    } catch {
-      toast.error('Erro ao criar espaço');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao criar espaco');
     } finally {
       setIsLoading(false);
     }
@@ -55,22 +90,22 @@ export default function NewSpacePage() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">Novo Espaço</h1>
-          <p className="text-muted-foreground">Cadastre um novo espaço na associação</p>
+          <h1 className="text-2xl font-bold">Novo Espaco</h1>
+          <p className="text-muted-foreground">Cadastre um novo espaco na associacao</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Informações Gerais */}
+        {/* Informacoes Gerais */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Informações Gerais</CardTitle>
-            <CardDescription>Dados básicos do espaço</CardDescription>
+            <CardTitle className="text-lg">Informacoes Gerais</CardTitle>
+            <CardDescription>Dados basicos do espaco</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Nome do Espaço *</Label>
+                <Label htmlFor="name">Nome do Espaco *</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -94,23 +129,23 @@ export default function NewSpacePage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Descrição</Label>
+              <Label htmlFor="description">Descricao</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Descreva o espaço..."
+                placeholder="Descreva o espaco..."
                 rows={3}
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Horário de Funcionamento */}
+        {/* Horario de Funcionamento */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Horário de Funcionamento</CardTitle>
-            <CardDescription>Configure os horários de funcionamento</CardDescription>
+            <CardTitle className="text-lg">Horario de Funcionamento</CardTitle>
+            <CardDescription>Configure os horarios de funcionamento</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -145,21 +180,21 @@ export default function NewSpacePage() {
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="minReservationMinutes">Tempo mínimo de reserva (min)</Label>
+                <Label htmlFor="minReservationMinutes">Tempo minimo de reserva (min)</Label>
                 <Input
                   id="minReservationMinutes"
                   type="number"
                   value={formData.minReservationMinutes}
-                  onChange={(e) => setFormData({ ...formData, minReservationMinutes: parseInt(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, minReservationMinutes: parseInt(e.target.value) || 0 })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="maxReservationMinutes">Tempo máximo de reserva (min)</Label>
+                <Label htmlFor="maxReservationMinutes">Tempo maximo de reserva (min)</Label>
                 <Input
                   id="maxReservationMinutes"
                   type="number"
                   value={formData.maxReservationMinutes}
-                  onChange={(e) => setFormData({ ...formData, maxReservationMinutes: parseInt(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, maxReservationMinutes: parseInt(e.target.value) || 0 })}
                 />
               </div>
             </div>
@@ -170,26 +205,26 @@ export default function NewSpacePage() {
                   id="bufferMinutes"
                   type="number"
                   value={formData.bufferMinutes}
-                  onChange={(e) => setFormData({ ...formData, bufferMinutes: parseInt(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, bufferMinutes: parseInt(e.target.value) || 0 })}
                 />
                 <p className="text-xs text-muted-foreground">Intervalo entre reservas</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="maxAdvanceDays">Antecedência máxima (dias)</Label>
+                <Label htmlFor="maxAdvanceDays">Antecedencia maxima (dias)</Label>
                 <Input
                   id="maxAdvanceDays"
                   type="number"
                   value={formData.maxAdvanceDays}
-                  onChange={(e) => setFormData({ ...formData, maxAdvanceDays: parseInt(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, maxAdvanceDays: parseInt(e.target.value) || 0 })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="maxReservationsPerDay">Máx. reservas/dia</Label>
+                <Label htmlFor="maxReservationsPerDay">Max. reservas/dia</Label>
                 <Input
                   id="maxReservationsPerDay"
                   type="number"
                   value={formData.maxReservationsPerDay}
-                  onChange={(e) => setFormData({ ...formData, maxReservationsPerDay: parseInt(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, maxReservationsPerDay: parseInt(e.target.value) || 0 })}
                 />
               </div>
             </div>
@@ -207,7 +242,7 @@ export default function NewSpacePage() {
               <div>
                 <Label>Possui custo de reserva</Label>
                 <p className="text-sm text-muted-foreground">
-                  Cobrar taxa ao reservar este espaço
+                  Cobrar taxa ao reservar este espaco
                 </p>
               </div>
               <Switch
@@ -235,16 +270,16 @@ export default function NewSpacePage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Status</CardTitle>
-            <CardDescription>Ativar ou desativar o espaço</CardDescription>
+            <CardDescription>Ativar ou desativar o espaco</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <Label>Espaço Ativo</Label>
+                <Label>Espaco Ativo</Label>
                 <p className="text-sm text-muted-foreground">
                   {formData.isActive
-                    ? 'Espaço disponível para reservas'
-                    : 'Espaço desativado, não permite reservas'}
+                    ? 'Espaco disponivel para reservas'
+                    : 'Espaco desativado, nao permite reservas'}
                 </p>
               </div>
               <Switch
@@ -263,7 +298,7 @@ export default function NewSpacePage() {
           <Button type="submit" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
-            Criar Espaço
+            Criar Espaco
           </Button>
         </div>
       </form>

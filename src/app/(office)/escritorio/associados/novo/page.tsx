@@ -8,35 +8,73 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { useTenant } from '@/lib/context/tenant-context';
 
 export default function NewMemberPage() {
   const router = useRouter();
+  const { tenantId } = useTenant();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     cpf: '',
-    rg: '',
     birthDate: '',
     email: '',
     phoneMobile: '',
     phoneHome: '',
-    street: '',
-    number: '',
-    city: '',
-    state: '',
+    addressStreet: '',
+    addressNumber: '',
+    addressCity: '',
+    addressState: '',
     type: 'afiliado',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.name || !formData.cpf || !formData.birthDate) {
+      toast.error('Preencha os campos obrigatorios');
+      return;
+    }
+
+    // Validar CPF basico
+    const cpfClean = formData.cpf.replace(/\D/g, '');
+    if (cpfClean.length !== 11) {
+      toast.error('CPF invalido');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await fetch('/api/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          name: formData.name,
+          cpf: formData.cpf,
+          birthDate: formData.birthDate,
+          email: formData.email || undefined,
+          phoneMobile: formData.phoneMobile || undefined,
+          phoneHome: formData.phoneHome || undefined,
+          addressStreet: formData.addressStreet || undefined,
+          addressNumber: formData.addressNumber || undefined,
+          addressCity: formData.addressCity || undefined,
+          addressState: formData.addressState || undefined,
+          type: formData.type as 'afiliado' | 'convidado' | 'dependente_maior',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao criar associado');
+      }
+
       toast.success('Associado criado com sucesso!');
       router.push('/escritorio/associados');
-    } catch {
-      toast.error('Erro ao criar associado');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao criar associado');
     } finally {
       setIsLoading(false);
     }
@@ -64,21 +102,47 @@ export default function NewMemberPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome Completo *</Label>
-                <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cpf">CPF *</Label>
-                <Input id="cpf" value={formData.cpf} onChange={(e) => setFormData({ ...formData, cpf: e.target.value })} required />
+                <Input
+                  id="cpf"
+                  placeholder="000.000.000-00"
+                  value={formData.cpf}
+                  onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                  required
+                />
               </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="rg">RG</Label>
-                <Input id="rg" value={formData.rg} onChange={(e) => setFormData({ ...formData, rg: e.target.value })} />
-              </div>
+            <div className="grid gap-4 md:grid-cols-2}>
               <div className="space-y-2">
                 <Label htmlFor="birthDate">Data de Nascimento *</Label>
-                <Input id="birthDate" type="date" value={formData.birthDate} onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })} required />
+                <Input
+                  id="birthDate"
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="type">Tipo</Label>
+                <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="afiliado">Afiliado</SelectItem>
+                    <SelectItem value="convidado">Convidado</SelectItem>
+                    <SelectItem value="dependente_maior">Dependente Maior</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardContent>
@@ -92,12 +156,33 @@ export default function NewMemberPage() {
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="email">E-mail *</Label>
-                <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
+                <Label htmlFor="email">E-mail</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phoneMobile">Celular *</Label>
-                <Input id="phoneMobile" value={formData.phoneMobile} onChange={(e) => setFormData({ ...formData, phoneMobile: e.target.value })} required />
+                <Label htmlFor="phoneMobile">Celular</Label>
+                <Input
+                  id="phoneMobile"
+                  placeholder="(00) 00000-0000"
+                  value={formData.phoneMobile}
+                  onChange={(e) => setFormData({ ...formData, phoneMobile: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="phoneHome">Telefone Fixo</Label>
+                <Input
+                  id="phoneHome"
+                  placeholder="(00) 0000-0000"
+                  value={formData.phoneHome}
+                  onChange={(e) => setFormData({ ...formData, phoneHome: e.target.value })}
+                />
               </div>
             </div>
           </CardContent>
@@ -111,22 +196,39 @@ export default function NewMemberPage() {
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="street">Logradouro</Label>
-                <Input id="street" value={formData.street} onChange={(e) => setFormData({ ...formData, street: e.target.value })} />
+                <Label htmlFor="addressStreet">Logradouro</Label>
+                <Input
+                  id="addressStreet"
+                  value={formData.addressStreet}
+                  onChange={(e) => setFormData({ ...formData, addressStreet: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="number">Numero</Label>
-                <Input id="number" value={formData.number} onChange={(e) => setFormData({ ...formData, number: e.target.value })} />
+                <Label htmlFor="addressNumber">Numero</Label>
+                <Input
+                  id="addressNumber"
+                  value={formData.addressNumber}
+                  onChange={(e) => setFormData({ ...formData, addressNumber: e.target.value })}
+                />
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="city">Cidade</Label>
-                <Input id="city" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} />
+                <Label htmlFor="addressCity">Cidade</Label>
+                <Input
+                  id="addressCity"
+                  value={formData.addressCity}
+                  onChange={(e) => setFormData({ ...formData, addressCity: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="state">Estado</Label>
-                <Input id="state" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} maxLength={2} />
+                <Label htmlFor="addressState">Estado</Label>
+                <Input
+                  id="addressState"
+                  value={formData.addressState}
+                  onChange={(e) => setFormData({ ...formData, addressState: e.target.value })}
+                  maxLength={2}
+                />
               </div>
             </div>
           </CardContent>

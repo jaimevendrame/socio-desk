@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Plus, Building, Clock, Users, DollarSign, MoreHorizontal, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,94 +8,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
 
-const mockSpaces = [
-  {
-    id: '1',
-    name: 'Quadra Poliesportiva A',
-    description: 'Quadra coberta para futsal, vôlei e basquete',
-    category: 'esportivo',
-    photoUrl: null,
-    openTime: '06:00',
-    closeTime: '22:00',
-    costAmount: 'R$ 50,00',
-    hasCost: true,
-    maxAdvanceDays: 30,
-    reservationsToday: 3,
-    isActive: true,
-  },
-  {
-    id: '2',
-    name: 'Quadra de Tênis',
-    description: '2 quadras de tênis com iluminação',
-    category: 'esportivo',
-    photoUrl: null,
-    openTime: '06:00',
-    closeTime: '22:00',
-    costAmount: 'R$ 30,00',
-    hasCost: true,
-    maxAdvanceDays: 15,
-    reservationsToday: 2,
-    isActive: true,
-  },
-  {
-    id: '3',
-    name: 'Salão de Festas',
-    description: 'Salão para eventos com capacidade para 150 pessoas',
-    category: 'social',
-    photoUrl: null,
-    openTime: '08:00',
-    closeTime: '23:00',
-    costAmount: 'R$ 300,00',
-    hasCost: true,
-    maxAdvanceDays: 90,
-    reservationsToday: 1,
-    isActive: true,
-  },
-  {
-    id: '4',
-    name: 'Sala de Jogos',
-    description: 'Sinuca, pebolim e tavla',
-    category: 'social',
-    photoUrl: null,
-    openTime: '08:00',
-    closeTime: '22:00',
-    costAmount: null,
-    hasCost: false,
-    maxAdvanceDays: 7,
-    reservationsToday: 5,
-    isActive: true,
-  },
-  {
-    id: '5',
-    name: 'Churrasqueira 1',
-    description: 'Churrasqueira com área verde',
-    category: 'social',
-    photoUrl: null,
-    openTime: '09:00',
-    closeTime: '22:00',
-    costAmount: 'R$ 80,00',
-    hasCost: true,
-    maxAdvanceDays: 30,
-    reservationsToday: 2,
-    isActive: true,
-  },
-  {
-    id: '6',
-    name: 'Piscina',
-    description: 'Piscina semiolímpica com raia',
-    category: 'esportivo',
-    photoUrl: null,
-    openTime: '06:00',
-    closeTime: '20:00',
-    costAmount: 'R$ 25,00',
-    hasCost: true,
-    maxAdvanceDays: 30,
-    reservationsToday: 4,
-    isActive: false,
-  },
-];
+interface Space {
+  id: string;
+  name: string;
+  description: string | null;
+  category: 'esportivo' | 'social' | 'equipamento';
+  photoUrl: string | null;
+  openTime: string;
+  closeTime: string;
+  costAmount: string | null;
+  hasCost: boolean;
+  maxAdvanceDays: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface SpacesApiResponse {
+  data: Space[];
+}
 
 const categoryColors = {
   esportivo: 'bg-emerald-100 text-emerald-800',
@@ -110,13 +44,35 @@ const categoryLabels = {
 };
 
 export default function SpacesListPage() {
+  const { tenantId } = useTenant();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>('all');
   const [statusFilter, setStatusFilter] = useState<string | null>('all');
+  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredSpaces = mockSpaces.filter((space) => {
+  useEffect(() => {
+    async function fetchSpaces() {
+      try {
+        setLoading(true);
+        const url = buildApiUrl('/api/spaces');
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Erro ao carregar espaços');
+        const data: SpacesApiResponse = await response.json();
+        setSpaces(data.data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro ao carregar');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSpaces();
+  }, [tenantId]);
+
+  const filteredSpaces = spaces.filter((space) => {
     const matchesSearch = space.name.toLowerCase().includes(search.toLowerCase()) ||
-      space.description.toLowerCase().includes(search.toLowerCase());
+      (space.description?.toLowerCase().includes(search.toLowerCase()) ?? false);
     const matchesCategory = categoryFilter === 'all' || space.category === categoryFilter;
     const matchesStatus = statusFilter === 'all' ||
       (statusFilter === 'active' && space.isActive) ||
@@ -125,10 +81,10 @@ export default function SpacesListPage() {
   });
 
   const stats = {
-    total: mockSpaces.length,
-    active: mockSpaces.filter((s) => s.isActive).length,
-    todayReservations: mockSpaces.reduce((acc, s) => acc + s.reservationsToday, 0),
-    categories: [...new Set(mockSpaces.map((s) => s.category))].length,
+    total: spaces.length,
+    active: spaces.filter((s) => s.isActive).length,
+    todayReservations: 0, // TODO: buscar da API de reservas
+    categories: [...new Set(spaces.map((s) => s.category))].length,
   };
 
   return (
@@ -229,71 +185,87 @@ export default function SpacesListPage() {
 
       {/* Spaces Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredSpaces.map((space) => (
-          <Card key={space.id} className={!space.isActive ? 'opacity-60' : ''}>
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-12 w-12 rounded-lg">
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      <Building className="h-6 w-6" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <CardTitle className="text-lg">{space.name}</CardTitle>
-                    <Badge className={categoryColors[space.category as keyof typeof categoryColors]} variant="secondary">
-                      {categoryLabels[space.category as keyof typeof categoryLabels]}
-                    </Badge>
-                  </div>
-                </div>
-                {!space.isActive && (
-                  <Badge variant="destructive">Inativo</Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="mb-4">{space.description}</CardDescription>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>{space.openTime} - {space.closeTime}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  <span>Reservas hoje: {space.reservationsToday}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>Antecedência máx: {space.maxAdvanceDays} dias</span>
-                </div>
-                {space.hasCost && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <DollarSign className="h-4 w-4" />
-                    <span>{space.costAmount}</span>
-                  </div>
-                )}
-              </div>
-              <div className="mt-4 flex gap-2">
-                <Link href={`/escritorio/espacos/${space.id}`} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full">Ver Detalhes</Button>
-                </Link>
-                <Button variant="outline" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </div>
+        {loading ? (
+          // Loading skeletons
+          Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-2/3" />
+              </CardContent>
+            </Card>
+          ))
+        ) : error ? (
+          <Card className="col-span-full">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <p className="text-destructive">{error}</p>
             </CardContent>
           </Card>
-        ))}
+        ) : filteredSpaces.length === 0 ? (
+          <Card className="col-span-full">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Building className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Nenhum espaço encontrado</p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredSpaces.map((space) => (
+            <Card key={space.id} className={!space.isActive ? 'opacity-60' : ''}>
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 rounded-lg">
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        <Building className="h-6 w-6" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle className="text-lg">{space.name}</CardTitle>
+                      <Badge className={categoryColors[space.category as keyof typeof categoryColors]} variant="secondary">
+                        {categoryLabels[space.category as keyof typeof categoryLabels]}
+                      </Badge>
+                    </div>
+                  </div>
+                  {!space.isActive && (
+                    <Badge variant="destructive">Inativo</Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="mb-4">{space.description}</CardDescription>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>{space.openTime} - {space.closeTime}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span>Antecedência máx: {space.maxAdvanceDays} dias</span>
+                  </div>
+                  {space.hasCost && space.costAmount && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <DollarSign className="h-4 w-4" />
+                      <span>R$ {parseFloat(space.costAmount).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Link href={`/escritorio/espacos/${space.id}`} className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full">Ver Detalhes</Button>
+                  </Link>
+                  <Button variant="outline" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
-
-      {filteredSpaces.length === 0 && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Building className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Nenhum espaço encontrado</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

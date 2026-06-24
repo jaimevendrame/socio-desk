@@ -1,42 +1,37 @@
 // Better Auth Configuration
 import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { db } from '@/lib/db/client';
-import * as schema from '@/lib/db/schema';
+import { db } from '@/lib/db';
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db, {
-    provider: 'pg',
-    schema: {
-      user: schema.users,
-      session: schema.sessions,
-      account: schema.accounts,
-      verification: schema.verifications,
-    },
-  }),
-
+  database: db,
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
   },
-
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    },
-  },
-
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day
-    cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60, // 5 minutes
+    expiresIn: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours
+  },
+  callbacks: {
+    async session({ session, user }) {
+      // Add tenantId to session from user data
+      if (user) {
+        // Fetch tenantId from user or team_member table
+        // For now, using demo tenant ID
+        session.user.tenantId = '1bdd8429-6dce-42ea-bf5b-6dc39a7a5490';
+      }
+      return session;
     },
   },
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === 'production',
+  },
+  // Social providers can be added later
+  // google: {
+  //   clientId: process.env.GOOGLE_CLIENT_ID!,
+  //   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  // },
 });
 
-// Types export
 export type Session = typeof auth.$Infer.Session;
-export type User = typeof auth.$Infer.Session.user;
+export type User = typeof auth.$Infer.User;

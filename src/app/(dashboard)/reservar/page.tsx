@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Save, Loader2, Calendar, Clock, MapPin, DollarSign, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -10,16 +10,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
 
-const spaces = [
-  { id: '1', name: 'Quadra Poliesportiva A', description: 'Quadra coberta para futsal, volei e basquete', cost: 50 },
-  { id: '2', name: 'Quadra de Tenis', description: '2 quadras de tenis com iluminacao', cost: 30 },
-  { id: '3', name: 'Salao de Festas', description: 'Salao para eventos com capacidade para 150 pessoas', cost: 300 },
-  { id: '4', name: 'Sala de Jogos', description: 'Sinuca, pebolim e tavla', cost: 0 },
-  { id: '5', name: 'Churrasqueira 1', description: 'Churrasqueira com area verde', cost: 80 },
-  { id: '6', name: 'Piscina', description: 'Piscina semiolimpica com raia', cost: 25 },
-];
+interface Space {
+  id: string;
+  name: string;
+  description: string | null;
+  costAmount: string | null;
+  hasCost: boolean;
+  openTime: string;
+  closeTime: string;
+}
 
 const timeSlots = [
   '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
@@ -29,8 +32,12 @@ const timeSlots = [
 
 export default function NewReservationPage() {
   const router = useRouter();
+  const { tenantId } = useTenant();
   const [isLoading, setIsLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [spacesLoading, setSpacesLoading] = useState(true);
   const [formData, setFormData] = useState({
     spaceId: '',
     date: '',
@@ -39,7 +46,29 @@ export default function NewReservationPage() {
     notes: '',
   });
 
+  // Buscar espaços do backend
+  useEffect(() => {
+    async function fetchSpaces() {
+      try {
+        setSpacesLoading(true);
+        const url = buildApiUrl('/api/spaces');
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Erro ao carregar espaços');
+        const data = await response.json();
+        setSpaces(data.data || []);
+      } catch (err) {
+        toast.error('Erro ao carregar espaços');
+      } finally {
+        setSpacesLoading(false);
+      }
+    }
+    fetchSpaces();
+  }, [tenantId]);
+
   const selectedSpace = spaces.find((s) => s.id === formData.spaceId);
+  const spaceCost = selectedSpace?.hasCost && selectedSpace?.costAmount
+    ? parseFloat(selectedSpace.costAmount)
+    : 0;
 
   const handleSubmit = async () => {
     if (!formData.spaceId || !formData.date || !formData.startTime || !formData.endTime) {
@@ -52,15 +81,35 @@ export default function NewReservationPage() {
       return;
     }
 
-    setIsLoading(true);
+    setSubmitLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const url = buildApiUrl('/api/reservations');
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          spaceId: formData.spaceId,
+          memberId: '00000000-0000-0000-0000-000000000001', // TODO: pegar do usuário logado
+          date: formData.date,
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          notes: formData.notes || undefined,
+          amount: spaceCost || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao criar reserva');
+      }
+
       toast.success('Reserva solicitada com sucesso!');
       router.push('/dashboard');
-    } catch {
-      toast.error('Erro ao criar reserva');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao criar reserva');
     } finally {
-      setIsLoading(false);
+      setSubmitLoading(false);
     }
   };
 
@@ -110,29 +159,48 @@ export default function NewReservationPage() {
       {step === 1 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Selecione o Espaco</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            {spaces.map((space) => (
-              <Card
-                key={space.id}
-                className={`cursor-pointer transition-all ${
-                  formData.spaceId === space.id ? 'ring-2 ring-primary' : ''
-                }`}
-                onClick={() => setFormData({ ...formData, spaceId: space.id })}
-              >
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{space.name}</CardTitle>
-                    {space.cost > 0 ? (
-                      <Badge variant="outline">R$ {space.cost.toFixed(2)}</Badge>
-                    ) : (
-                      <Badge className="bg-green-100 text-green-800">Gratis</Badge>
-                    )}
-                  </div>
-                  <CardDescription>{space.description}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
+          {spacesLoading ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-4 w-full" />
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          ) : spaces.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">Nenhum espaco disponivel</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {spaces.map((space) => (
+                <Card
+                  key={space.id}
+                  className={`cursor-pointer transition-all ${
+                    formData.spaceId === space.id ? 'ring-2 ring-primary' : ''
+                  }`}
+                  onClick={() => setFormData({ ...formData, spaceId: space.id })}
+                >
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{space.name}</CardTitle>
+                      {space.hasCost && space.costAmount ? (
+                        <Badge variant="outline">R$ {parseFloat(space.costAmount).toFixed(2)}</Badge>
+                      ) : (
+                        <Badge className="bg-green-100 text-green-800">Gratis</Badge>
+                      )}
+                    </div>
+                    <CardDescription>{space.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          )}
           <div className="flex justify-end">
             <Button onClick={nextStep}>Proximo</Button>
           </div>
@@ -228,10 +296,10 @@ export default function NewReservationPage() {
                   <Clock className="h-5 w-5 text-muted-foreground" />
                   <p className="font-medium">{formData.startTime} - {formData.endTime}</p>
                 </div>
-                {selectedSpace && selectedSpace.cost > 0 && (
+                {spaceCost > 0 && (
                   <div className="flex items-center gap-3 pt-2 border-t">
                     <DollarSign className="h-5 w-5 text-muted-foreground" />
-                    <p className="font-medium">R$ {selectedSpace.cost.toFixed(2)}</p>
+                    <p className="font-medium">R$ {spaceCost.toFixed(2)}</p>
                   </div>
                 )}
                 {formData.notes && (
@@ -243,8 +311,8 @@ export default function NewReservationPage() {
               </div>
               <div className="flex justify-between">
                 <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-                <Button onClick={handleSubmit} disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button onClick={handleSubmit} disabled={submitLoading}>
+                  {submitLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   <Save className="mr-2 h-4 w-4" />
                   Confirmar Reserva
                 </Button>

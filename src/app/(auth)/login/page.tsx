@@ -13,9 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/auth/client';
 
 const loginSchema = z.object({
-  email: z.string().email('E-mail inválido'),
+  email: z.string().email('E-mail invalido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   remember: z.boolean().optional(),
 });
@@ -24,6 +25,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -44,12 +46,18 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const result = await signIn(data.email, data.password);
+
+      if (result.error) {
+        toast.error(result.error);
+        setIsLoading(false);
+        return;
+      }
+
       toast.success('Login realizado com sucesso!');
       router.push('/dashboard');
     } catch {
-      toast.error('Credenciais inválidas. Tente novamente.');
-    } finally {
+      toast.error('Credenciais invalidas. Tente novamente.');
       setIsLoading(false);
     }
   }
@@ -92,7 +100,7 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
+                placeholder="********"
                 {...register('password')}
                 className={`pr-10 ${errors.password ? 'border-destructive' : ''}`}
               />
@@ -127,7 +135,7 @@ export default function LoginPage() {
           </Button>
 
           <p className="text-sm text-muted-foreground">
-            Não tem uma conta?{' '}
+            Nao tem uma conta?{' '}
             <Link href="/register" className="text-primary hover:underline">
               Cadastre-se
             </Link>

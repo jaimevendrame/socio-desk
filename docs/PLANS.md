@@ -62,23 +62,18 @@ docker-compose.yml           # Postgres + MinIO
 ---
 
 ### 🔄 M3 - Backend Essentials
-**Status:** Em andamento (APIs REST concluídas)
+**Status:** Concluido
 
-**Entregas concluídas:**
-- [x] APIs REST implementadas:
-  - [x] `/api/members` - CRUD de associados
-  - [x] `/api/spaces` - CRUD de espaços
-  - [x] `/api/reservations` - CRUD com verificação de conflitos
-  - [x] `/api/payments` - CRUD de pagamentos
-- [x] Validação Zod em todas as APIs
-- [x] Detecção de conflitos de horário em reservas
-
-**Próximos passos:**
-- [ ] Configurar Docker e banco PostgreSQL (precisa Docker local)
-- [ ] Executar migrations Drizzle
-- [ ] Seed database com dados de teste
-- [ ] Conectar páginas ao backend real
-- [ ] Autenticação funcional (login/logout)
+**Entregas:**
+- [x] APIs REST implementadas (members, spaces, reservations, payments)
+- [x] Validação Zod
+- [x] Detecção de conflitos de horário
+- [x] Páginas conectadas ao backend
+- [x] Hooks e Context reutilizáveis
+- [x] Banco de dados configurado (Docker + PostgreSQL)
+- [x] Schema aplicado (14 tabelas)
+- [x] Seed executado com dados de teste
+- [x] **Autenticação básica implementada**
 
 ---
 

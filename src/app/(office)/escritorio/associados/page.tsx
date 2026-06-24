@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Plus, Filter, MoreHorizontal, Mail, Phone, Building, BadgeCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,66 +9,33 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
 
-// Mock data
-const mockMembers = [
-  {
-    id: '1',
-    name: 'Maria Oliveira',
-    cpf: '123.456.789-00',
-    email: 'maria.oliveira@email.com',
-    phone: '(11) 98765-4321',
-    type: 'afiliado',
-    status: 'ativo',
-    workplace: 'Secretaria de Educação',
-    admissionDate: '15/01/2020',
-  },
-  {
-    id: '2',
-    name: 'Carlos Santos',
-    cpf: '987.654.321-00',
-    email: 'carlos.santos@email.com',
-    phone: '(11) 91234-5678',
-    type: 'afiliado',
-    status: 'ativo',
-    workplace: 'Prefeitura Municipal',
-    admissionDate: '01/06/2019',
-  },
-  {
-    id: '3',
-    name: 'Ana Costa',
-    cpf: '456.789.123-00',
-    email: 'ana.costa@email.com',
-    phone: '(11) 99876-5432',
-    type: 'afiliado',
-    status: 'inadimplente',
-    workplace: 'Hospital Regional',
-    admissionDate: '10/03/2021',
-  },
-  {
-    id: '4',
-    name: 'Pedro Mendes',
-    cpf: '321.654.987-00',
-    email: 'pedro.mendes@email.com',
-    phone: '(11) 95555-1234',
-    type: 'convidado',
-    status: 'ativo',
-    workplace: null,
-    admissionDate: '20/08/2022',
-  },
-  {
-    id: '5',
-    name: 'Juliana Ferreira',
-    cpf: '654.321.789-00',
-    email: 'juliana.ferreira@email.com',
-    phone: '(11) 94444-5678',
-    type: 'afiliado',
-    status: 'ativo',
-    workplace: 'Instituto Federal',
-    admissionDate: '05/01/2023',
-  },
-];
+interface Member {
+  id: string;
+  name: string;
+  cpf: string;
+  email: string | null;
+  phoneHome: string | null;
+  phoneMobile: string | null;
+  type: 'afiliado' | 'convidado' | 'dependente_maior';
+  status: 'ativo' | 'inadimplente' | 'suspenso' | 'cancelado';
+  workplaceId: string | null;
+  admissionDate: string | null;
+  createdAt: string;
+}
+
+interface MembersApiResponse {
+  data: Member[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 const statusColors = {
   ativo: 'bg-green-100 text-green-800',
@@ -84,25 +51,52 @@ const typeLabels = {
 };
 
 export default function MembersListPage() {
+  const { tenantId } = useTenant();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>('all');
   const [typeFilter, setTypeFilter] = useState<string | null>('all');
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredMembers = mockMembers.filter((member) => {
+  useEffect(() => {
+    async function fetchMembers() {
+      try {
+        setLoading(true);
+        const url = buildApiUrl('/api/members', {
+          search: search || undefined,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+          type: typeFilter === 'all' ? undefined : typeFilter,
+          limit: 50,
+        });
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Erro ao carregar associados');
+        const data: MembersApiResponse = await response.json();
+        setMembers(data.data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro ao carregar');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchMembers();
+  }, [tenantId, search, statusFilter, typeFilter]);
+
+  const filteredMembers = members.filter((member) => {
     const matchesSearch =
       member.name.toLowerCase().includes(search.toLowerCase()) ||
       member.cpf.includes(search) ||
-      member.email.toLowerCase().includes(search.toLowerCase());
+      (member.email?.toLowerCase().includes(search.toLowerCase()) ?? false);
     const matchesStatus = statusFilter === 'all' || member.status === statusFilter;
     const matchesType = typeFilter === 'all' || member.type === typeFilter;
     return matchesSearch && matchesStatus && matchesType;
   });
 
   const stats = {
-    total: mockMembers.length,
-    ativos: mockMembers.filter((m) => m.status === 'ativo').length,
-    inadimplentes: mockMembers.filter((m) => m.status === 'inadimplente').length,
-    convidados: mockMembers.filter((m) => m.type === 'convidado').length,
+    total: members.length,
+    ativos: members.filter((m) => m.status === 'ativo').length,
+    inadimplentes: members.filter((m) => m.status === 'inadimplente').length,
+    convidados: members.filter((m) => m.type === 'convidado').length,
   };
 
   return (
@@ -214,75 +208,92 @@ export default function MembersListPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {filteredMembers.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between rounded-lg border p-4 hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {member.name
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{member.name}</p>
-                      {member.status === 'ativo' && (
-                        <BadgeCheck className="h-4 w-4 text-green-600" />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Badge variant="secondary" className="text-xs">
-                          {member.cpf}
-                        </Badge>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        {member.email}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        {member.phone}
-                      </span>
-                      {member.workplace && (
-                        <span className="flex items-center gap-1">
-                          <Building className="h-3 w-3" />
-                          {member.workplace}
-                        </span>
-                      )}
+            {loading ? (
+              // Loading skeletons
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-12 w-12 rounded-full" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-48" />
                     </div>
                   </div>
+                  <Skeleton className="h-8 w-20" />
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge className={statusColors[member.status as keyof typeof statusColors]}>
-                    {member.status}
-                  </Badge>
-                  <Badge variant="outline">{typeLabels[member.type as keyof typeof typeLabels]}</Badge>
-                  <Link href={`/escritorio/associados/${member.id}`}>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
+              ))
+            ) : error ? (
+              <div className="text-center py-12">
+                <p className="text-destructive">{error}</p>
               </div>
-            ))}
+            ) : filteredMembers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <p className="text-muted-foreground">Nenhum associado encontrado</p>
+                <p className="text-sm text-muted-foreground">
+                  Tente ajustar os filtros ou adicionar um novo associado
+                </p>
+              </div>
+            ) : (
+              filteredMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between rounded-lg border p-4 hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src="" />
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {member.name
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{member.name}</p>
+                        {member.status === 'ativo' && (
+                          <BadgeCheck className="h-4 w-4 text-green-600" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Badge variant="secondary" className="text-xs">
+                            {member.cpf}
+                          </Badge>
+                        </span>
+                        {member.email && (
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            {member.email}
+                          </span>
+                        )}
+                        {member.phoneMobile && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            {member.phoneMobile}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge className={statusColors[member.status as keyof typeof statusColors]}>
+                      {member.status}
+                    </Badge>
+                    <Badge variant="outline">{typeLabels[member.type as keyof typeof typeLabels]}</Badge>
+                    <Link href={`/escritorio/associados/${member.id}`}>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-          {filteredMembers.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-muted-foreground">Nenhum associado encontrado</p>
-              <p className="text-sm text-muted-foreground">
-                Tente ajustar os filtros ou adicionar um novo associado
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,33 +12,64 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
 
-const mockReservations = [
-  { id: '1', space: 'Quadra A', member: 'Maria Oliveira', time: '08:00 - 10:00', status: 'confirmada' },
-  { id: '2', space: 'Salão', member: 'Carlos Santos', time: '10:00 - 12:00', status: 'confirmada' },
-  { id: '3', space: 'Quadra B', member: 'Ana Costa', time: '14:00 - 16:00', status: 'pendente' },
-  { id: '4', space: 'Churrasqueira', member: 'João Silva', time: '12:00 - 18:00', status: 'confirmada' },
-  { id: '5', space: 'Sala de Jogos', member: 'Pedro Mendes', time: '19:00 - 22:00', status: 'confirmada' },
-  { id: '6', space: 'Piscina', member: 'Juliana Ferreira', time: '06:00 - 08:00', status: 'confirmada' },
-];
+interface Reservation {
+  id: string;
+  spaceId: string;
+  spaceName?: string;
+  memberId: string;
+  memberName?: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: 'pendente' | 'confirmada' | 'cancelada' | 'concluida';
+  notes: string | null;
+}
 
-const timeSlots = [
-  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
-  '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-  '18:00', '19:00', '20:00', '21:00', '22:00',
-];
+interface ReservationsApiResponse {
+  data: Reservation[];
+}
 
-const spaces = ['Quadra A', 'Quadra B', 'Salão', 'Sala de Jogos', 'Churrasqueira', 'Piscina'];
-
-const statusColors = {
+const statusColors: Record<string, string> = {
   confirmada: 'bg-blue-500',
   pendente: 'bg-yellow-500',
   cancelada: 'bg-gray-400',
+  concluida: 'bg-green-500',
 };
 
 export default function CalendarPage() {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 5, 23)); // June 23, 2026
+  const { tenantId } = useTenant();
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Buscar reservas do backend
+  useEffect(() => {
+    async function fetchReservations() {
+      try {
+        setLoading(true);
+        // Buscar reservas do mês atual
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const startDate = `${year}-${month}-01`;
+        const lastDay = new Date(year, currentDate.getMonth() + 1, 0).getDate();
+        const endDate = `${year}-${month}-${lastDay}`;
+
+        const url = buildApiUrl('/api/reservations', { startDate, endDate });
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Erro ao carregar reservas');
+        const data: ReservationsApiResponse = await response.json();
+        setReservations(data.data || []);
+      } catch (err) {
+        console.error('Erro ao carregar reservas:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchReservations();
+  }, [tenantId, currentDate]);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -78,17 +109,16 @@ export default function CalendarPage() {
   };
 
   const isToday = (date: Date) => {
-    const today = new Date(2026, 5, 23);
+    const today = new Date();
     return date.toDateString() === today.toDateString();
   };
 
-  const getReservationsForDate = (day: number) => {
-    // Simulate some reservations
-    if (day === 23) return mockReservations;
-    if (day === 24) return [mockReservations[0], mockReservations[3]];
-    if (day === 25) return [mockReservations[4]];
-    return [];
+  const getReservationsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return reservations.filter((r) => r.date === dateStr);
   };
+
+  const todayReservations = getReservationsForDate(new Date());
 
   return (
     <div className="space-y-6">
@@ -99,7 +129,7 @@ export default function CalendarPage() {
           <p className="text-muted-foreground">Visualize todas as reservas do mês</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date(2026, 5, 23))}>
+          <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
             Hoje
           </Button>
           <Button variant="outline" size="icon" onClick={goToPrevMonth}>
@@ -127,7 +157,7 @@ export default function CalendarPage() {
             {/* Days */}
             <div className="grid grid-cols-7 gap-1">
               {days.map((day, index) => {
-                const reservations = getReservationsForDate(day.date.getDate());
+                const dayReservations = day.currentMonth ? getReservationsForDate(day.date) : [];
                 return (
                   <div
                     key={index}
@@ -139,17 +169,17 @@ export default function CalendarPage() {
                       {day.date.getDate()}
                     </div>
                     <div className="space-y-1">
-                      {reservations.slice(0, 3).map((res) => (
+                      {dayReservations.slice(0, 3).map((res) => (
                         <div
                           key={res.id}
-                          className={`text-xs px-1 py-0.5 rounded truncate text-white ${statusColors[res.status as keyof typeof statusColors]}`}
+                          className={`text-xs px-1 py-0.5 rounded truncate text-white ${statusColors[res.status] || 'bg-gray-400'}`}
                         >
-                          {res.time.split(' - ')[0]} {res.space}
+                          {res.startTime.slice(0, 5)} {res.spaceName || 'Espaço'}
                         </div>
                       ))}
-                      {reservations.length > 3 && (
+                      {dayReservations.length > 3 && (
                         <div className="text-xs text-muted-foreground px-1">
-                          +{reservations.length - 3} mais
+                          +{dayReservations.length - 3} mais
                         </div>
                       )}
                     </div>
@@ -163,37 +193,55 @@ export default function CalendarPage() {
         {/* Reservations List */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Reservas do Dia</CardTitle>
+            <CardTitle className="text-lg">Reservas de Hoje</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {mockReservations.map((res) => (
-                <div key={res.id} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {res.space}
-                      </Badge>
-                      <Badge className={
-                        res.status === 'confirmada'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }>
-                        {res.status}
-                      </Badge>
+            {loading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="rounded-lg border p-3">
+                    <Skeleton className="h-4 w-3/4 mb-2" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : todayReservations.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>Nenhuma reserva hoje</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {todayReservations.map((res) => (
+                  <div key={res.id} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {res.spaceName || 'Espaço'}
+                        </Badge>
+                        <Badge className={
+                          res.status === 'confirmada'
+                            ? 'bg-green-100 text-green-800'
+                            : res.status === 'pendente'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }>
+                          {res.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="h-3 w-3 text-muted-foreground" />
+                      <span>{res.startTime.slice(0, 5)} - {res.endTime.slice(0, 5)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm mt-1">
+                      <User className="h-3 w-3 text-muted-foreground" />
+                      <span>{res.memberName || 'Membro'}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-3 w-3 text-muted-foreground" />
-                    <span>{res.time}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm mt-1">
-                    <User className="h-3 w-3 text-muted-foreground" />
-                    <span>{res.member}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
