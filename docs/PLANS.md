@@ -180,10 +180,10 @@ socio-desk/
 
 **GitHub:** https://github.com/jaimevendrame/socio-desk
 
-**Branch atual:** `feature/M5-financeiro`
+**Branch atual:** `main`
 
 **Commits:**
-- `xxxxxxx` - feat: M5 - Sistema de pagamentos e inadimplência
+- `268dd01` - feat(financeiro): M5 - Sistema de pagamentos e inadimplência
 - `50aa452` - feat: completar M4 - Calendário interativo
 - `9d3b1a7` - fix: corrigir formulário e lista de reservas
 - `c33966f` - feat: M4 - Reservations Core
