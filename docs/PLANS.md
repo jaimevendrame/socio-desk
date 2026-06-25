@@ -98,15 +98,28 @@ docker-compose.yml           # Postgres + MinIO
 
 ---
 
-### 📋 M5 - Financeiro
-**Status:** Pendente
+### ✅ M5 - Financeiro
+**Status:** Concluído em 26/06/2026
 
-**Entregas planejadas:**
-- [ ] Dashboard financeiro com gráficos
-- [ ] CRUD de mensalidades
-- [ ] Sistema de inadimplência
-- [ ] Integração PIX/pagamentos
-- [ ] Relatórios exportáveis
+**Entregas:**
+- [x] `/escritorio/financeiro` - Dashboard financeiro com stats (recebido, pendente, inadimplentes)
+- [x] `/escritorio/financeiro` - Lista de pagamentos com filtros por status
+- [x] `/api/payments` - CRUD completo com estatísticas e paginação
+- [x] `/api/payments/[id]/mark-paid` - API para baixa de pagamento
+- [x] `PaymentDialog` - Componente de diálogo para registrar baixa
+- [x] `RegisterPaymentDialog` - Componente para registrar nova mensalidade
+- [x] `src/lib/finance/subscription-generator.ts` - Geração automática de mensalidades
+- [x] `src/lib/finance/debt-checker.ts` - Verificação de inadimplência com auto-bloqueio
+- [x] `/api/cron/check-overdue` - Endpoint para verificar pagamentos vencidos
+- [x] `/api/cron/generate-subscriptions` - Endpoint para gerar mensalidades do mês
+- [x] `/api/reports/financial` - Relatório exportável em CSV
+- [x] Hook `usePayments` com tipos corretos
+- [x] Bloqueio automático de inadimplentes via cron job
+- [x] Desbloqueio automático ao quitar débitos
+
+**Pendente:**
+- [ ] Dashboard com gráficos (Chart.js/Recharts)
+- [ ] Integração PIX/pagamentos online (Fase 2)
 
 ---
 
@@ -167,9 +180,10 @@ socio-desk/
 
 **GitHub:** https://github.com/jaimevendrame/socio-desk
 
-**Branch atual:** `main`
+**Branch atual:** `feature/M5-financeiro`
 
 **Commits:**
+- `xxxxxxx` - feat: M5 - Sistema de pagamentos e inadimplência
 - `50aa452` - feat: completar M4 - Calendário interativo
 - `9d3b1a7` - fix: corrigir formulário e lista de reservas
 - `c33966f` - feat: M4 - Reservations Core
