@@ -142,23 +142,21 @@ export function RegisterPaymentDialog({
     }
   }, [preselectedMemberId]);
 
-  const TriggerWrapper = ({ children }: { children: React.ReactNode }) => (
-    <div onClick={() => setOpen(true)} className="inline-flex cursor-pointer">
-      {children}
-    </div>
+  const defaultButton = (
+    <Button type="button" onClick={() => setOpen(true)}>
+      <Plus className="mr-2 h-4 w-4" />
+      Registrar Pagamento
+    </Button>
   );
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger ? (
-        <TriggerWrapper>{trigger}</TriggerWrapper>
+        <div onClick={() => setOpen(true)} className="inline-flex cursor-pointer">
+          {trigger}
+        </div>
       ) : (
-        <DialogTrigger>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Registrar Pagamento
-          </Button>
-        </DialogTrigger>
+        defaultButton
       )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

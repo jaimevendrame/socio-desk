@@ -90,16 +90,22 @@ export function PaymentDialog({ payment, onSuccess, trigger }: PaymentDialogProp
     setOpen(newOpen);
   };
 
+  const defaultTrigger = (
+    <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <CreditCard className="mr-2 h-4 w-4" />
+      Baixar
+    </Button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger>
-        {trigger || (
-          <Button size="sm" variant="outline">
-            <CreditCard className="mr-2 h-4 w-4" />
-            Baixar
-          </Button>
-        )}
-      </DialogTrigger>
+      {trigger ? (
+        <div onClick={() => setOpen(true)} className="inline-flex cursor-pointer">
+          {trigger}
+        </div>
+      ) : (
+        defaultTrigger
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
