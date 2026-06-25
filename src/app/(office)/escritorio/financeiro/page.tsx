@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, AlertTriangle, Check, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, AlertTriangle, Check, Loader2, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
 import { PaymentDialog } from '@/components/payments/PaymentDialog';
 import { RegisterPaymentDialog } from '@/components/payments/RegisterPaymentDialog';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+} from 'recharts';
 
 interface Payment {
   id: string;
@@ -117,6 +129,41 @@ export default function FinancialPage() {
         : 0,
     };
     setStats(newStats);
+  }, [payments]);
+
+  // Calcular dados do gráfico de tendências por mês
+  const chartData = useMemo(() => {
+    const monthlyData: Record<string, { month: string; recebidos: number; pendentes: number; inadimplentes: number }> = {};
+
+    payments.forEach((payment) => {
+      const date = new Date(payment.dueDate);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = date.toLocaleDateString('pt-BR', { month: 'short' });
+
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = {
+          month: monthLabel,
+          recebidos: 0,
+          pendentes: 0,
+          inadimplentes: 0,
+        };
+      }
+
+      const amount = parseFloat(payment.amount || '0');
+      switch (payment.status) {
+        case 'paid':
+          monthlyData[monthKey].recebidos += amount;
+          break;
+        case 'pending':
+          monthlyData[monthKey].pendentes += amount;
+          break;
+        case 'overdue':
+          monthlyData[monthKey].inadimplentes += amount;
+          break;
+      }
+    });
+
+    return Object.values(monthlyData).reverse().slice(-6);
   }, [payments]);
 
   // Filtrar pagamentos inadimplentes
@@ -390,6 +437,84 @@ export default function FinancialPage() {
 
         {/* Resumo */}
         <TabsContent value="resumo" className="space-y-4">
+          {/* Gráfico de Tendências */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Tendência de Pagamentos
+              </CardTitle>
+              <CardDescription>Receita mensal dos últimos 6 meses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-[300px] w-full" />
+              ) : chartData.length > 0 ? (
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis
+                        dataKey="month"
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `R$ ${value.toLocaleString('pt-BR')}`}
+                      />
+                      <Tooltip
+                        formatter={(value) => [
+                          `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                        ]}
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                        }}
+                      />
+                      <Legend
+                        wrapperStyle={{ fontSize: '12px' }}
+                      />
+                      <Bar
+                        dataKey="recebidos"
+                        name="Recebidos"
+                        fill="#22c55e"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={50}
+                      />
+                      <Bar
+                        dataKey="pendentes"
+                        name="Pendentes"
+                        fill="#eab308"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={50}
+                      />
+                      <Bar
+                        dataKey="inadimplentes"
+                        name="Inadimplentes"
+                        fill="#ef4444"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={50}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex h-[200px] items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <BarChart3 className="mx-auto mb-2 h-8 w-8 opacity-50" />
+                    <p>Sem dados suficientes para exibir o gráfico</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Resumo Geral</CardTitle>
