@@ -15,11 +15,11 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
 
 interface NavItem {
@@ -39,15 +39,15 @@ const officeNav: NavItem[] = [
   { title: 'Dashboard', href: '/escritorio', icon: <LayoutDashboard className="h-5 w-5" /> },
   { title: 'Reservas', href: '/escritorio/reservas', icon: <Calendar className="h-5 w-5" /> },
   { title: 'Associados', href: '/escritorio/associados', icon: <Users className="h-5 w-5" /> },
-  { title: 'Espaços', href: '/escritorio/espacos', icon: <Building className="h-5 w-5" /> },
+  { title: 'Espacos', href: '/escritorio/espacos', icon: <Building className="h-5 w-5" /> },
   { title: 'Financeiro', href: '/escritorio/financeiro', icon: <CreditCard className="h-5 w-5" /> },
 ];
 
 const adminNav: NavItem[] = [
   { title: 'Dashboard', href: '/admin', icon: <LayoutDashboard className="h-5 w-5" /> },
-  { title: 'Configurações', href: '/admin/config', icon: <Settings className="h-5 w-5" /> },
+  { title: 'Configuracoes', href: '/admin/config', icon: <Settings className="h-5 w-5" /> },
   { title: 'Equipe', href: '/admin/equipe', icon: <Shield className="h-5 w-5" /> },
-  { title: 'Relatórios', href: '/admin/relatorios', icon: <FileText className="h-5 w-5" /> },
+  { title: 'Relatorios', href: '/admin/relatorios', icon: <FileText className="h-5 w-5" /> },
 ];
 
 const masterNav: NavItem[] = [
@@ -77,32 +77,30 @@ export function Sidebar({ variant = 'member' }: SidebarProps) {
   return (
     <div
       className={cn(
-        'relative flex flex-col border-r bg-sidebar transition-all duration-300',
+        'relative flex flex-col bg-sidebar border-r border-border transition-all duration-300',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b px-4">
-        {!collapsed && (
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Building className="h-5 w-5" />
-            </div>
-            <span className="font-semibold">Socio Desk</span>
-          </Link>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
+      <div className="flex h-16 items-center justify-between border-b border-border px-4">
+        <Link href="/" className={cn('flex items-center gap-3', collapsed && 'justify-center w-full')}>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+            <Building className="h-5 w-5" />
+          </div>
+          {!collapsed && (
+            <span className="font-semibold tracking-tight text-foreground">Socio Desk</span>
           )}
-        </Button>
+        </Link>
+        {!collapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCollapsed(!collapsed)}
+            className="h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -115,10 +113,10 @@ export function Sidebar({ variant = 'member' }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                   isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   collapsed && 'justify-center px-2'
                 )}
               >
@@ -130,19 +128,69 @@ export function Sidebar({ variant = 'member' }: SidebarProps) {
         </nav>
       </ScrollArea>
 
-      {/* Footer */}
-      <div className="border-t p-4">
-        {!collapsed ? (
-          <div className="text-xs text-muted-foreground">
-            <p>Socio Desk v1.0</p>
-            <p className="mt-1">Ambiente de Desenvolvimento</p>
+      {/* Settings & Logout */}
+      <div className="border-t border-border p-2">
+        {collapsed ? (
+          <div className="flex flex-col items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
           </div>
         ) : (
-          <div className="flex justify-center">
-            <div className="h-2 w-2 rounded-full bg-primary" />
+          <div className="space-y-1">
+            <Link
+              href="/settings"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+            >
+              <Settings className="h-5 w-5" />
+              <span>Configuracoes</span>
+            </Link>
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/5 hover:text-destructive transition-all"
+            >
+              <LogOut className="h-5 w-5" />
+              <span>Sair</span>
+            </button>
           </div>
         )}
       </div>
+
+      {/* Footer */}
+      <div className="border-t border-border p-4">
+        {collapsed ? (
+          <div className="flex justify-center">
+            <div className="h-2 w-2 rounded-full bg-primary" />
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">
+            <p>Socio Desk v1.0</p>
+          </div>
+        )}
+      </div>
+
+      {/* Collapse button */}
+      {collapsed && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute -right-3 top-20 z-10 h-6 w-6 rounded-full border border-border bg-sidebar shadow-sm text-muted-foreground hover:bg-muted"
+        >
+          <ChevronRight className="h-3 w-3" />
+        </Button>
+      )}
     </div>
   );
 }

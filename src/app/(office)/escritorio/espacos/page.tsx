@@ -32,9 +32,9 @@ interface SpacesApiResponse {
 }
 
 const categoryColors = {
-  esportivo: 'bg-emerald-100 text-emerald-800',
-  social: 'bg-purple-100 text-purple-800',
-  equipamento: 'bg-amber-100 text-amber-800',
+  esportivo: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300',
+  social: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300',
+  equipamento: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
 };
 
 const categoryLabels = {
@@ -117,10 +117,10 @@ export default function SpacesListPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Espaços Ativos</CardTitle>
-            <Building className="h-4 w-4 text-green-600" />
+            <Building className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+            <div className="text-2xl font-bold text-primary">{stats.active}</div>
           </CardContent>
         </Card>
         <Card>

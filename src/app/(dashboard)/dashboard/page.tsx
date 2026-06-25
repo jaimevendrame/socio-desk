@@ -1,9 +1,11 @@
 'use client';
 
-import { Calendar, Clock, Users, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, Users, CheckCircle, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { StaggerContainer, fadeVariants, MotionCard } from '@/components/animations/fade-in';
 
 // Mock data
 const upcomingReservations = [
@@ -31,180 +33,176 @@ const upcomingReservations = [
 ];
 
 const notifications = [
-  { id: '1', message: 'Reserva confirmada para amanhã', time: '2 horas atrás', unread: true },
-  { id: '2', message: 'Nova mensagem do escritório', time: '1 dia atrás', unread: true },
-  { id: '3', message: 'Mensalidade confirmada', time: '3 dias atrás', unread: false },
+  { id: '1', message: 'Reserva confirmada para amanha', time: '2 horas atras', unread: true },
+  { id: '2', message: 'Nova mensagem do escritorio', time: '1 dia atras', unread: true },
+  { id: '3', message: 'Mensalidade confirmada', time: '3 dias atras', unread: false },
+];
+
+const stats = [
+  { label: 'Proximas reservas', value: '3', icon: Calendar, color: 'dark:bg-emerald-500/10 dark:text-emerald-400 bg-emerald-500/10 text-emerald-600' },
+  { label: 'Horas este mes', value: '12h', icon: Clock, color: 'dark:bg-amber-500/10 dark:text-amber-400 bg-amber-500/10 text-amber-600' },
+  { label: 'Dependentes', value: '3', icon: Users, color: 'dark:bg-blue-500/10 dark:text-blue-400 bg-blue-500/10 text-blue-600' },
+  { label: 'Status', value: 'Ok', icon: CheckCircle, color: 'dark:bg-emerald-500/10 dark:text-emerald-400 bg-emerald-500/10 text-emerald-600' },
 ];
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
-      {/* Welcome */}
-      <div>
-        <h1 className="text-2xl font-bold">Bem-vindo, João!</h1>
-        <p className="text-muted-foreground">Aqui está o resumo da sua conta</p>
-      </div>
+    <div className="min-h-screen bg-background p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header */}
+        <StaggerContainer>
+          <motion.div variants={fadeVariants}>
+            <div className="label mb-1 text-muted-foreground">Dashboard</div>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+              Bem-vindo, Joao
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Acompanhe suas reservas e atividades recentes
+            </p>
+          </motion.div>
+        </StaggerContainer>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Próximas Reservas</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">Próximos 30 dias</p>
-          </CardContent>
-        </Card>
+        {/* Stats Grid */}
+        <StaggerContainer className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.map((stat, i) => (
+            <motion.div key={i} variants={fadeVariants}>
+              <MotionCard className="bg-card border-border rounded-xl p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-2xl font-semibold tracking-tight text-foreground">{stat.value}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{stat.label}</p>
+                  </div>
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.color}`}>
+                    <stat.icon className="h-5 w-5" />
+                  </div>
+                </div>
+              </MotionCard>
+            </motion.div>
+          ))}
+        </StaggerContainer>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Horas Reservadas</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12h</div>
-            <p className="text-xs text-muted-foreground">Este mês</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dependentes</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">Cadastrados</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Status</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <Badge className="bg-green-100 text-green-800">Adimplente</Badge>
-            <p className="text-xs text-muted-foreground mt-1">Conta em dia</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Upcoming Reservations */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
+        {/* Main Content */}
+        <div className="grid lg:grid-cols-5 gap-6">
+          {/* Reservations */}
+          <Card className="lg:col-span-3 bg-card border-border rounded-xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-4 border-border">
               <div>
-                <CardTitle>Próximas Reservas</CardTitle>
-                <CardDescription>Seus próximos compromissos</CardDescription>
+                <CardTitle className="text-lg font-semibold tracking-tight text-foreground">Proximas Reservas</CardTitle>
+                <CardDescription className="text-muted-foreground">Seus compromissos agendados</CardDescription>
               </div>
               <Link
                 href="/reservas"
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent h-7"
+                className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 transition-colors"
               >
                 Ver todas
+                <ChevronRight className="h-4 w-4" />
               </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {upcomingReservations.map((reservation) => (
-                <div
-                  key={reservation.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div className="space-y-1">
-                    <p className="font-medium">{reservation.space}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {reservation.date} • {reservation.time}
-                    </p>
-                  </div>
-                  <Badge
-                    className={
-                      reservation.status === 'confirmada'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }
+            </CardHeader>
+            <CardContent className="p-6">
+              <StaggerContainer className="space-y-3">
+                {upcomingReservations.map((reservation) => (
+                  <motion.div
+                    key={reservation.id}
+                    variants={fadeVariants}
+                    className="flex items-center justify-between p-4 rounded-xl border-border hover:border-border-hover hover:bg-muted/50 transition-all"
                   >
-                    {reservation.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-            <Link
-              href="/reservar"
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-            >
-              Nova Reserva
-            </Link>
-          </CardContent>
-        </Card>
+                    <div className="flex items-center gap-4">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+                        reservation.status === 'confirmada'
+                          ? 'dark:bg-emerald-500/10 dark:text-emerald-400 bg-emerald-500/10 text-emerald-600'
+                          : 'dark:bg-amber-500/10 dark:text-amber-400 bg-amber-500/10 text-amber-600'
+                      }`}>
+                        <Calendar className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">{reservation.space}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {reservation.date} &middot; {reservation.time}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge
+                      className={
+                        reservation.status === 'confirmada'
+                          ? 'badge-success'
+                          : 'badge-warning'
+                      }
+                    >
+                      {reservation.status === 'confirmada' ? 'Confirmada' : 'Pendente'}
+                    </Badge>
+                  </motion.div>
+                ))}
+              </StaggerContainer>
 
-        {/* Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Notificações</CardTitle>
-            <CardDescription>Últimas atualizações da sua conta</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`flex items-start gap-3 rounded-lg border p-3 ${
-                    notification.unread ? 'bg-accent' : ''
-                  }`}
-                >
-                  {notification.unread && (
-                    <div className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                  )}
-                  <div className="space-y-1">
-                    <p className="text-sm">{notification.message}</p>
-                    <p className="text-xs text-muted-foreground">{notification.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              <Link
+                href="/reservar"
+                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-white font-medium transition-all hover:bg-emerald-700 hover:shadow-md active:scale-[0.98]"
+              >
+                <Calendar className="h-5 w-5" />
+                Nova Reserva
+              </Link>
+            </CardContent>
+          </Card>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Ações Rápidas</CardTitle>
-          <CardDescription>Atalhos para funções mais utilizadas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Link
-              href="/reservar"
-              className="inline-flex h-20 flex-col items-center justify-center gap-2 rounded-lg border border-input bg-background hover:bg-accent"
-            >
-              <Calendar className="h-6 w-6" />
-              <span className="text-sm">Fazer Reserva</span>
-            </Link>
-            <Link
-              href="/perfil"
-              className="inline-flex h-20 flex-col items-center justify-center gap-2 rounded-lg border border-input bg-background hover:bg-accent"
-            >
-              <Users className="h-6 w-6" />
-              <span className="text-sm">Gerenciar Dependentes</span>
-            </Link>
-            <Link
-              href="/perfil/senha"
-              className="inline-flex h-20 flex-col items-center justify-center gap-2 rounded-lg border border-input bg-background hover:bg-accent"
-            >
-              <CheckCircle className="h-6 w-6" />
-              <span className="text-sm">Alterar Senha</span>
-            </Link>
+          {/* Sidebar */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Notifications */}
+            <Card className="bg-card border-border rounded-xl">
+              <CardHeader className="pb-4 border-border">
+                <CardTitle className="text-lg font-semibold tracking-tight text-foreground">Notificacoes</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-1">
+                {notifications.map((notification) => (
+                  <motion.div
+                    key={notification.id}
+                    variants={fadeVariants}
+                    className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${
+                      notification.unread ? 'dark:bg-emerald-500/5 bg-emerald-500/5' : ''
+                    }`}
+                  >
+                    {notification.unread && (
+                      <div className="mt-1.5 h-2 w-2 rounded-full dark:bg-emerald-400 bg-emerald-600" />
+                    )}
+                    {!notification.unread && <div className="mt-1.5 h-2 w-2" />}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${notification.unread ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{notification.time}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card className="bg-card border-border rounded-xl">
+              <CardHeader className="pb-4 border-border">
+                <CardTitle className="text-lg font-semibold tracking-tight text-foreground">Acoes Rapidas</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-2">
+                {[
+                  { href: '/reservar', icon: Calendar, label: 'Fazer Reserva', color: 'dark:bg-emerald-500/10 dark:text-emerald-400 bg-emerald-500/10 text-emerald-600' },
+                  { href: '/perfil', icon: Users, label: 'Gerenciar Dependentes', color: 'dark:bg-blue-500/10 dark:text-blue-400 bg-blue-500/10 text-blue-600' },
+                  { href: '/perfil/senha', icon: CheckCircle, label: 'Alterar Senha', color: 'dark:bg-amber-500/10 dark:text-amber-400 bg-amber-500/10 text-amber-600' },
+                ].map((action, i) => (
+                  <motion.div key={i} variants={fadeVariants}>
+                    <Link
+                      href={action.href}
+                      className="flex items-center gap-3 p-3 rounded-xl border-border hover:border-border-hover hover:bg-muted/50 transition-all"
+                    >
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${action.color}`}>
+                        <action.icon className="h-5 w-5" />
+                      </div>
+                      <span className="font-medium text-foreground">{action.label}</span>
+                    </Link>
+                  </motion.div>
+                ))}
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

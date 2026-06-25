@@ -135,6 +135,51 @@ docker-compose.yml           # Postgres + MinIO
 
 ---
 
+### 🎨 M7 - Design System v2
+**Status:** Concluido (26/06/2026)
+
+**Direção visual:** Professional SaaS (Linear/Vercel inspired) — sofisticado, minimalista, consistente
+
+**Entregas:**
+- [x] `src/app/globals.css` - Design tokens profissionais
+- [x] `src/app/layout.tsx` - Inter font configurado
+- [x] `/login` - Split layout com branding escuro
+- [x] `/dashboard` - Stats cards + stagger animations
+- [x] `/escritorio` - Painel admin com hierarquia visual
+- [x] `/escritorio/financeiro` - Gráficos com nova paleta
+- [x] `components/layout/sidebar.tsx` - Sidebar redesenhada
+- [x] `components/layout/header.tsx` - Header com backdrop blur
+- [x] `components/theme/theme-toggle.tsx` - Toggle dark/light mode
+- [x] `components/animations/fade-in.tsx` - Motion utilities (Framer Motion)
+- [x] Dark mode consistente implementado
+
+**Tokens de Design v2:**
+| Token | Valor | Uso |
+|-------|-------|-----|
+| Background | `#FAFAFA` | Fundo off-white (nunca puro branco) |
+| Foreground | `#18181B` | Texto principal (zinc-900) |
+| Brand Primary | `#16a34a` | CTAs, destaques (emerald-600) |
+| Brand Light | `#22c55e` | Hovers, accents |
+| Muted | `#71717A` | Texto secundário (zinc-500) |
+| Border | `rgba(0,0,0,0.06)` | Bordas sutis, não cinza |
+| Error | `#dc2626` | Status de erro |
+| Warning | `#ca8a04` | Status de alerta (yellow-600) |
+
+**Type Scale** — usa Tailwind padrão (text-xs a text-3xl via classe)
+
+**Shadows (brand tint):**
+- `--shadow-sm`: 0 1px 3px rgba(34,197,94,0.04)
+- `--shadow-md`: 0 4px 6px rgba(34,197,94,0.04)
+- `--shadow-lg`: 0 10px 15px rgba(34,197,94,0.06)
+
+**Animações (Framer Motion):**
+- Fade + translateY(8px): 200ms, ease [0.16,1,0.3,1]
+- Stagger: 40ms entre elementos
+- Hover card: scale(1.01) + y(-2px)
+- prefers-reduced-motion respeitado
+
+---
+
 ## Arquitetura
 
 ### Stack Tecnológico
