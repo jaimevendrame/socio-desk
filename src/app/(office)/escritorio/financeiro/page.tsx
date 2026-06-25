@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, Users, Calendar, AlertTriangle, Clock } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
+import { PaymentDialog } from '@/components/payments/PaymentDialog';
+import { RegisterPaymentDialog } from '@/components/payments/RegisterPaymentDialog';
 
 interface Payment {
   id: string;
@@ -41,11 +43,40 @@ const statusLabels: Record<string, string> = {
   cancelled: 'Cancelado',
 };
 
+const paymentMethodLabels: Record<string, string> = {
+  dinheiro: 'Dinheiro',
+  pix: 'PIX',
+  cartao_credito: 'Cartão de Crédito',
+  cartao_debito: 'Cartão de Débito',
+  transferencia: 'Transferência',
+  boleto: 'Boleto',
+};
+
+// Componente para BadgeCheck (ícone de check)
+function BadgeCheck({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
 export default function FinancialPage() {
   const { tenantId } = useTenant();
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [stats, setStats] = useState({
+    totalReceived: 0,
+    totalPending: 0,
+    totalOverdue: 0,
+    defaultersCount: 0,
+    totalAmount: 0,
+    paymentRate: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [monthFilter, setMonthFilter] = useState<string>(new Date().toISOString().slice(5, 7));
+  const handleMonthFilterChange = (value: string | null) => {
+    if (value) setMonthFilter(value);
+  };
 
   useEffect(() => {
     async function fetchPayments() {
@@ -66,20 +97,27 @@ export default function FinancialPage() {
   }, [tenantId]);
 
   // Calcular estatísticas
-  const stats = {
-    totalReceived: payments
-      .filter((p) => p.status === 'paid')
-      .reduce((acc, p) => acc + parseFloat(p.amount || '0'), 0),
-    totalPending: payments
-      .filter((p) => p.status === 'pending')
-      .reduce((acc, p) => acc + parseFloat(p.amount || '0'), 0),
-    totalOverdue: payments
-      .filter((p) => p.status === 'overdue')
-      .reduce((acc, p) => acc + parseFloat(p.amount || '0'), 0),
-    defaultersCount: new Set(
-      payments.filter((p) => p.status === 'overdue').map((p) => p.memberId)
-    ).size,
-  };
+  useEffect(() => {
+    const newStats = {
+      totalReceived: payments
+        .filter((p) => p.status === 'paid')
+        .reduce((acc, p) => acc + parseFloat(p.amount || '0'), 0),
+      totalPending: payments
+        .filter((p) => p.status === 'pending')
+        .reduce((acc, p) => acc + parseFloat(p.amount || '0'), 0),
+      totalOverdue: payments
+        .filter((p) => p.status === 'overdue')
+        .reduce((acc, p) => acc + parseFloat(p.amount || '0'), 0),
+      defaultersCount: new Set(
+        payments.filter((p) => p.status === 'overdue').map((p) => p.memberId)
+      ).size,
+      totalAmount: payments.reduce((acc, p) => acc + parseFloat(p.amount || '0'), 0),
+      paymentRate: payments.length > 0
+        ? (payments.filter(p => p.status === 'paid').length / payments.length) * 100
+        : 0,
+    };
+    setStats(newStats);
+  }, [payments]);
 
   // Filtrar pagamentos inadimplentes
   const defaulters = payments
@@ -98,6 +136,11 @@ export default function FinancialPage() {
       return acc;
     }, [] as { memberId: string; memberName: string; totalAmount: number }[]);
 
+  const handlePaymentSuccess = () => {
+    // Recarregar pagamentos
+    window.location.reload();
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -107,7 +150,7 @@ export default function FinancialPage() {
           <p className="text-muted-foreground">Controle de mensalidades e pagamentos</p>
         </div>
         <div className="flex gap-2">
-          <Select value={monthFilter} onValueChange={setMonthFilter}>
+          <Select value={monthFilter} onValueChange={handleMonthFilterChange}>
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
@@ -117,10 +160,7 @@ export default function FinancialPage() {
               <SelectItem value="04">Abril 2026</SelectItem>
             </SelectContent>
           </Select>
-          <Button>
-            <CreditCard className="mr-2 h-4 w-4" />
-            Registrar Pagamento
-          </Button>
+          <RegisterPaymentDialog onSuccess={handlePaymentSuccess} />
         </div>
       </div>
 
@@ -146,7 +186,7 @@ export default function FinancialPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pendente</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-600" />
+            <DollarSign className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -188,14 +228,12 @@ export default function FinancialPage() {
             ) : (
               <>
                 <div className="text-2xl font-bold">
-                  {payments.length > 0
-                    ? ((payments.filter(p => p.status === 'paid').length / payments.length) * 100).toFixed(1)
-                    : 0}%
+                  {stats.paymentRate.toFixed(1)}%
                 </div>
                 <div className="h-2 bg-muted rounded-full mt-2">
                   <div
                     className="h-2 bg-primary rounded-full transition-all"
-                    style={{ width: `${payments.length > 0 ? (payments.filter(p => p.status === 'paid').length / payments.length) * 100 : 0}%` }}
+                    style={{ width: `${stats.paymentRate}%` }}
                   />
                 </div>
               </>
@@ -214,7 +252,7 @@ export default function FinancialPage() {
             ) : (
               <>
                 <div className="text-2xl font-bold">
-                  R$ {payments.reduce((acc, p) => acc + parseFloat(p.amount || '0'), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {stats.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </div>
                 <p className="text-xs text-muted-foreground">{payments.length} registros</p>
               </>
@@ -260,17 +298,28 @@ export default function FinancialPage() {
                         <p className="text-sm text-muted-foreground">
                           {payment.description} • Venc: {new Date(payment.dueDate).toLocaleDateString('pt-BR')}
                         </p>
+                        {payment.status === 'paid' && payment.paymentMethod && (
+                          <p className="text-xs text-muted-foreground">
+                            Pago via {paymentMethodLabels[payment.paymentMethod] || payment.paymentMethod}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="font-semibold">R$ {parseFloat(payment.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                         <Badge className={statusColors[payment.status]}>
                           {statusLabels[payment.status]}
                         </Badge>
-                        {payment.status !== 'paid' && (
-                          <Button size="sm" variant="outline">
-                            <CreditCard className="mr-2 h-4 w-4" />
-                            Baixar
-                          </Button>
+                        {payment.status !== 'paid' && payment.status !== 'cancelled' && (
+                          <PaymentDialog
+                            payment={{
+                              id: payment.id,
+                              memberName: payment.memberName || 'Membro',
+                              description: payment.description,
+                              amount: payment.amount,
+                              dueDate: payment.dueDate,
+                            }}
+                            onSuccess={handlePaymentSuccess}
+                          />
                         )}
                       </div>
                     </div>
@@ -305,7 +354,7 @@ export default function FinancialPage() {
                   ))
                 ) : defaulters.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <BadgeCheck className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <BadgeCheck className="h-8 w-8 mx-auto mb-2 text-green-500 opacity-50" />
                     <p>Nenhum inadimplente</p>
                   </div>
                 ) : (
@@ -433,6 +482,10 @@ export default function FinancialPage() {
                     <span className="text-sm">Associados inadimplentes</span>
                     <span className="font-medium text-red-600">{stats.defaultersCount}</span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Taxa de cobrança</span>
+                    <span className="font-medium">{stats.paymentRate.toFixed(1)}%</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -440,14 +493,5 @@ export default function FinancialPage() {
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-// Helper para BadgeCheck
-function BadgeCheck({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
   );
 }

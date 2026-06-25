@@ -63,12 +63,13 @@ export default function MembersListPage() {
     async function fetchMembers() {
       try {
         setLoading(true);
-        const url = buildApiUrl('/api/members', {
-          search: search || undefined,
-          status: statusFilter === 'all' ? undefined : statusFilter,
-          type: typeFilter === 'all' ? undefined : typeFilter,
+        const params: Record<string, string | number | boolean> = {
           limit: 50,
-        });
+        };
+        if (search) params.search = search;
+        if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+        if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
+        const url = buildApiUrl('/api/members', params);
         const response = await fetch(url);
         if (!response.ok) throw new Error('Erro ao carregar associados');
         const data: MembersApiResponse = await response.json();

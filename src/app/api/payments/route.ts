@@ -1,29 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { payments } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { payments, members } from '@/lib/db/schema';
+import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 import { z } from 'zod';
+import { createPaymentSchema } from '@/lib/payments/schema';
 
-const createPaymentSchema = z.object({
+const listPaymentsSchema = z.object({
   tenantId: z.string().uuid(),
-  memberId: z.string().uuid(),
-  description: z.string().min(1).max(255),
-  amount: z.number().min(0),
-  dueDate: z.string(),
-  paidDate: z.string().optional(),
-  status: z.enum(['pending', 'paid', 'overdue', 'cancelled']).default('pending'),
-  paymentMethod: z.string().optional(),
-  receivedBy: z.string().uuid().optional(),
-  notes: z.string().optional(),
+  memberId: z.string().uuid().optional(),
+  status: z.enum(['pending', 'paid', 'overdue', 'cancelled']).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
 });
 
-// GET /api/payments - Listar pagamentos
+// GET /api/payments - Listar pagamentos com estatísticas
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get('tenantId');
     const memberId = searchParams.get('memberId');
     const status = searchParams.get('status');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
 
     if (!tenantId) {
       return NextResponse.json({ error: 'tenantId é obrigatório' }, { status: 400 });
@@ -39,13 +41,98 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(payments.status, status as 'pending' | 'paid' | 'overdue' | 'cancelled'));
     }
 
-    const result = await db
-      .select()
-      .from(payments)
-      .where(and(...conditions))
-      .orderBy(desc(payments.dueDate));
+    if (startDate) {
+      conditions.push(gte(payments.dueDate, startDate));
+    }
 
-    return NextResponse.json({ data: result });
+    if (endDate) {
+      conditions.push(lte(payments.dueDate, endDate));
+    }
+
+    // Query principal
+    const result = await db
+      .select({
+        id: payments.id,
+        tenantId: payments.tenantId,
+        memberId: payments.memberId,
+        memberName: members.name,
+        memberEmail: members.email,
+        description: payments.description,
+        amount: payments.amount,
+        dueDate: payments.dueDate,
+        paidDate: payments.paidDate,
+        status: payments.status,
+        paymentMethod: payments.paymentMethod,
+        receivedBy: payments.receivedBy,
+        receivedAt: payments.receivedAt,
+        notes: payments.notes,
+        createdAt: payments.createdAt,
+        updatedAt: payments.updatedAt,
+      })
+      .from(payments)
+      .leftJoin(members, eq(payments.memberId, members.id))
+      .where(and(...conditions))
+      .orderBy(desc(payments.dueDate))
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    // Query para estatísticas
+    const statsResult = await db
+      .select({
+        totalPaid: sql<string>`COALESCE(SUM(CASE WHEN ${payments.status} = 'paid' THEN ${payments.amount}::decimal ELSE 0 END), 0)`,
+        totalPending: sql<string>`COALESCE(SUM(CASE WHEN ${payments.status} = 'pending' THEN ${payments.amount}::decimal ELSE 0 END), 0)`,
+        totalOverdue: sql<string>`COALESCE(SUM(CASE WHEN ${payments.status} = 'overdue' THEN ${payments.amount}::decimal ELSE 0 END), 0)`,
+        totalAmount: sql<string>`COALESCE(SUM(${payments.amount}::decimal), 0)`,
+        paidCount: sql<string>`COUNT(CASE WHEN ${payments.status} = 'paid' THEN 1 END)`,
+        pendingCount: sql<string>`COUNT(CASE WHEN ${payments.status} = 'pending' THEN 1 END)`,
+        overdueCount: sql<string>`COUNT(CASE WHEN ${payments.status} = 'overdue' THEN 1 END)`,
+        cancelledCount: sql<string>`COUNT(CASE WHEN ${payments.status} = 'cancelled' THEN 1 END)`,
+        totalCount: sql<string>`COUNT(*)`,
+      })
+      .from(payments)
+      .where(and(...conditions));
+
+    const stats = statsResult[0];
+
+    // Query para total de inadimplentes
+    const defaultersResult = await db
+      .select({
+        count: sql<string>`COUNT(DISTINCT ${payments.memberId})`,
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.tenantId, tenantId),
+          sql`${payments.status} IN ('overdue', 'pending')`
+        )
+      );
+
+    return NextResponse.json({
+      data: result,
+      stats: {
+        totalReceived: parseFloat(stats.totalPaid as string) || 0,
+        totalPending: parseFloat(stats.totalPending as string) || 0,
+        totalOverdue: parseFloat(stats.totalOverdue as string) || 0,
+        totalAmount: parseFloat(stats.totalAmount as string) || 0,
+        counts: {
+          paid: parseInt(stats.paidCount as string) || 0,
+          pending: parseInt(stats.pendingCount as string) || 0,
+          overdue: parseInt(stats.overdueCount as string) || 0,
+          cancelled: parseInt(stats.cancelledCount as string) || 0,
+          total: parseInt(stats.totalCount as string) || 0,
+        },
+        paymentRate: parseInt(stats.totalCount as string) > 0
+          ? (parseInt(stats.paidCount as string) / parseInt(stats.totalCount as string)) * 100
+          : 0,
+        defaultersCount: parseInt(defaultersResult[0]?.count as string) || 0,
+      },
+      pagination: {
+        page,
+        limit,
+        total: parseInt(stats.totalCount as string) || 0,
+        totalPages: Math.ceil(parseInt(stats.totalCount as string) || 0 / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching payments:', error);
     return NextResponse.json({ error: 'Erro ao buscar pagamentos' }, { status: 500 });

@@ -13,9 +13,9 @@ export const auth = betterAuth({
     updateAge: 24 * 60 * 60, // 24 hours
   },
   callbacks: {
-    async session({ session, user }) {
+    async session({ session, user }: { session: any; user: any }) {
       // Add tenantId to session from user data
-      if (user) {
+      if (user && session?.user) {
         // Fetch tenantId from user or team_member table
         // For now, using demo tenant ID
         session.user.tenantId = '1bdd8429-6dce-42ea-bf5b-6dc39a7a5490';
@@ -34,4 +34,3 @@ export const auth = betterAuth({
 });
 
 export type Session = typeof auth.$Infer.Session;
-export type User = typeof auth.$Infer.User;

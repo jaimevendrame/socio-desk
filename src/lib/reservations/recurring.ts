@@ -12,11 +12,10 @@
 
 import { addDays, addWeeks, format, isAfter, isBefore, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import type { RecurringPattern } from './schema';
 
 export const MAX_DAILY_RECURRENCE_DAYS = 90;
 export const MAX_WEEKLY_RECURRENCE_DAYS = 180;
-
-export type RecurringPattern = 'daily' | 'weekly';
 
 /**
  * Gera lista de datas para uma reserva recorrente

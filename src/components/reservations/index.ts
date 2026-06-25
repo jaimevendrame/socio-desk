@@ -11,4 +11,4 @@ export * from '@/lib/reservations/recurring';
 // Hooks
 export { useReservations } from '@/hooks/useReservations';
 export { useAvailability } from '@/hooks/useAvailability';
-export { useConflicts } from '@/hooks/useConflicts';
+export { useConflictCheck } from '@/hooks/useConflicts';

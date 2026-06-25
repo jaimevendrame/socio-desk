@@ -15,10 +15,10 @@ interface UseMembersResult {
   data: Array<{
     id: string;
     name: string;
-    email: string;
+    email: string | null;
     cpf: string;
     status: 'ativo' | 'inadimplente' | 'suspenso' | 'cancelado';
-    phoneMobile?: string;
+    phoneMobile?: string | null;
   }>;
   isLoading: boolean;
   error: Error | null;

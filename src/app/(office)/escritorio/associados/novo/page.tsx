@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -27,7 +27,7 @@ export default function NewMemberPage() {
     addressNumber: '',
     addressCity: '',
     addressState: '',
-    type: 'afiliado',
+    type: 'afiliado' as 'afiliado' | 'convidado' | 'dependente_maior',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -133,9 +133,9 @@ export default function NewMemberPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type">Tipo</Label>
-                <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
+                <Select value={formData.type} onValueChange={(v) => v && setFormData({ ...formData, type: v as 'afiliado' | 'convidado' | 'dependente_maior' })}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="afiliado">Afiliado</SelectItem>
@@ -151,7 +151,7 @@ export default function NewMemberPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Contato</CardTitle>
-            <CardDescription>Canais de comunicacao</CardDescription>
+            <CardDescription>Informacoes de contato do membro</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -174,29 +174,27 @@ export default function NewMemberPage() {
                 />
               </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="phoneHome">Telefone Fixo</Label>
-                <Input
-                  id="phoneHome"
-                  placeholder="(00) 0000-0000"
-                  value={formData.phoneHome}
-                  onChange={(e) => setFormData({ ...formData, phoneHome: e.target.value })}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="phoneHome">Telefone Fixo</Label>
+              <Input
+                id="phoneHome"
+                placeholder="(00) 0000-0000"
+                value={formData.phoneHome}
+                onChange={(e) => setFormData({ ...formData, phoneHome: e.target.value })}
+              />
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Endereco</CardTitle>
-            <CardDescription>Endereco residencial</CardDescription>
+            <CardTitle className="text-lg">Endereço</CardTitle>
+            <CardDescription>Endereço residencial do membro</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="addressStreet">Logradouro</Label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="addressStreet">Rua</Label>
                 <Input
                   id="addressStreet"
                   value={formData.addressStreet}
@@ -204,7 +202,7 @@ export default function NewMemberPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="addressNumber">Numero</Label>
+                <Label htmlFor="addressNumber">Número</Label>
                 <Input
                   id="addressNumber"
                   value={formData.addressNumber}
@@ -227,7 +225,6 @@ export default function NewMemberPage() {
                   id="addressState"
                   value={formData.addressState}
                   onChange={(e) => setFormData({ ...formData, addressState: e.target.value })}
-                  maxLength={2}
                 />
               </div>
             </div>
@@ -236,12 +233,20 @@ export default function NewMemberPage() {
 
         <div className="flex justify-end gap-4">
           <Link href="/escritorio/associados">
-            <Button variant="outline" type="button">Cancelar</Button>
+            <Button variant="outline">Cancelar</Button>
           </Link>
           <Button type="submit" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Save className="mr-2 h-4 w-4" />
-            Salvar Associado
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Criar Associado
+              </>
+            )}
           </Button>
         </div>
       </form>

@@ -33,19 +33,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Busca espaços (ou espaço específico)
-    let spacesQuery = db
-      .select()
-      .from(spaces)
-      .where(and(
-        eq(spaces.tenantId, tenantId),
-        eq(spaces.isActive, true)
-      ));
+    let spacesConditions = [
+      eq(spaces.tenantId, tenantId),
+      eq(spaces.isActive, true),
+    ];
 
     if (spaceId) {
-      spacesQuery = spacesQuery.where(eq(spaces.id, spaceId)) as any;
+      spacesConditions.push(eq(spaces.id, spaceId));
     }
 
-    const spacesResult = await spacesQuery;
+    const spacesResult = await db
+      .select()
+      .from(spaces)
+      .where(and(...spacesConditions));
 
     if (spacesResult.length === 0) {
       return NextResponse.json(

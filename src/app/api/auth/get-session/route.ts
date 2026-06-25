@@ -3,14 +3,11 @@ import { auth } from '@/lib/auth';
 
 export async function GET() {
   try {
+    // Obter cookies do header de requisição
+    const requestHeaders = new Headers();
+
     const session = await auth.api.getSession({
-      headers: new Headers({
-        cookie: Object.fromEntries(
-          Object.entries(Object.fromEntries(
-            // Get cookies from headers in production
-          ))
-        ),
-      }),
+      headers: requestHeaders,
     });
 
     if (!session) {

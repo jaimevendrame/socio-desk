@@ -22,16 +22,16 @@ interface UseReservationsResult {
   data: Array<{
     id: string;
     spaceId: string;
-    spaceName: string;
+    spaceName: string | null;
     memberId: string;
-    memberName: string;
+    memberName: string | null;
     date: string;
     startTime: string;
     endTime: string;
     status: 'pendente' | 'confirmada' | 'cancelada' | 'concluida';
-    notes?: string;
-    createdAt: string;
-    updatedAt: string;
+    notes?: string | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
   }>;
   isLoading: boolean;
   error: Error | null;
@@ -108,7 +108,7 @@ export function useReservations(options: UseReservationsOptions): UseReservation
           )
         );
 
-      const [countResult] = await countQuery;
+      const countResult = await countQuery;
       const totalCount = countResult.length;
 
       setData(result);

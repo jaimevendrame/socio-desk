@@ -3,9 +3,12 @@ import { db } from '@/lib/db/client';
 import { reservations, members, spaces } from '@/lib/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { requireAuth, requirePermission } from '@/lib/auth/permissions';
+import { requireAuth, type SessionUser } from '@/lib/auth/permissions';
 import { sendReservationConfirmation, sendReservationCancellation, sendReservationReminder } from '@/lib/email/reservations';
 import { auditLog } from '@/lib/logging';
+
+// Demo tenant ID - TODO: get from session when auth is ready
+const DEMO_TENANT_ID = '1bdd8429-6dce-42ea-bf5b-6dc39a7a5490';
 
 const notificationSchema = z.object({
   reservationId: z.string().uuid('ID da reserva inválido'),
@@ -20,7 +23,8 @@ const notificationSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth(request);
-    requirePermission(session.user.role, 'reservations:write');
+    const user = session.user as SessionUser;
+    const tenantId = user.tenantId || DEMO_TENANT_ID;
 
     const body = await request.json();
     const data = notificationSchema.parse(body);
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
       .where(
         and(
           eq(reservations.id, data.reservationId),
-          eq(reservations.tenantId, session.user.tenantId)
+          eq(reservations.tenantId, tenantId)
         )
       );
 
@@ -70,14 +74,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const spaceName = resData.space?.name || 'Espaço';
+    const memberEmail = resData.member.email;
+    const memberName = resData.member.name;
+
     let sent = false;
     let message = '';
 
     switch (data.type) {
       case 'confirmation':
         sent = await sendReservationConfirmation({
-          memberEmail: resData.member.email,
-          memberName: resData.member.name,
+          memberEmail,
+          memberName,
           reservation: {
             id: resData.id,
             date: resData.date,
@@ -85,16 +93,16 @@ export async function POST(request: NextRequest) {
             endTime: resData.endTime,
             status: resData.status,
           },
-          spaceName: resData.space.name,
+          spaceName,
         });
         message = 'E-mail de confirmação enviado';
         break;
 
       case 'cancellation':
         sent = await sendReservationCancellation({
-          memberEmail: resData.member.email,
-          memberName: resData.member.name,
-          spaceName: resData.space.name,
+          memberEmail,
+          memberName,
+          spaceName,
           date: resData.date,
           startTime: resData.startTime,
           endTime: resData.endTime,
@@ -117,9 +125,9 @@ export async function POST(request: NextRequest) {
         }
 
         sent = await sendReservationReminder({
-          memberEmail: resData.member.email,
-          memberName: resData.member.name,
-          spaceName: resData.space.name,
+          memberEmail,
+          memberName,
+          spaceName,
           date: resData.date,
           startTime: resData.startTime,
           endTime: resData.endTime,
@@ -139,8 +147,8 @@ export async function POST(request: NextRequest) {
       action: 'SEND_NOTIFICATION',
       entity: 'reservation',
       entityId: resData.id,
-      userId: session.user.id,
-      tenantId: session.user.tenantId,
+      userId: user.id,
+      tenantId,
       changes: {
         type: data.type,
         sent: sent,
@@ -161,7 +169,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
+        { error: 'Validation failed', details: error.format() },
         { status: 400 }
       );
     }

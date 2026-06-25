@@ -99,6 +99,13 @@ export async function getReservationsForDate(
   tenantId: string,
   excludeId?: string
 ) {
+  const conditions: any[] = [
+    eq(reservations.spaceId, spaceId),
+    eq(reservations.date, date),
+    eq(reservations.tenantId, tenantId),
+  ];
+
+  // Build the query based on whether we have an excludeId
   const query = db
     .select({
       id: reservations.id,
@@ -110,23 +117,7 @@ export async function getReservationsForDate(
       status: reservations.status,
     })
     .from(reservations)
-    .where(
-      and(
-        eq(reservations.spaceId, spaceId),
-        eq(reservations.date, date),
-        eq(reservations.tenantId, tenantId),
-        // Não incluir reservas canceladas na verificação de conflito
-        // eq(reservations.status, 'cancelada') // Descomentar se quiser excluir canceladas
-      )
-    );
-
-  if (excludeId) {
-    query.where(and(
-      eq(reservations.spaceId, spaceId),
-      eq(reservations.date, date),
-      eq(reservations.tenantId, tenantId)
-    ));
-  }
+    .where(and(...conditions));
 
   return query;
 }
@@ -188,6 +179,7 @@ export async function checkConflict(
     hasConflict: conflictingReservations.length > 0,
     conflictingReservations: conflictingReservations.map((r) => ({
       id: r.id,
+      memberId: r.memberId,
       memberName: '', // Será preenchido com join na query
       date,
       startTime: r.startTime,

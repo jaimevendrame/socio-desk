@@ -61,6 +61,7 @@ export interface ConflictCheck {
   hasConflict: boolean;
   conflictingReservations: Array<{
     id: string;
+    memberId: string;
     memberName: string;
     date: string;
     startTime: string;
