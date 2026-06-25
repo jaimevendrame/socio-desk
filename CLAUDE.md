@@ -3,8 +3,9 @@
 # Socio Desk — Contexto do Projeto
 
 **Versão:** MVP em desenvolvimento
-**Stack:** Next.js 14 + Drizzle ORM + Better Auth + PostgreSQL + Coolify
+**Stack:** Next.js 16 + Drizzle ORM + Better Auth + PostgreSQL + Coolify
 **Data:** Junho/2026
+**Status:** M5 Financeiro completo ✅
 
 ---
 
@@ -57,7 +58,13 @@ Socio Desk é um SaaS multi-tenant para gestão de reservas de associações rec
 ### 4.4 Financeiro
 - Cadastro de mensalidades
 - Baixa manual de pagamento
-- Bloqueio inadimplentes
+- Bloqueio inadimplentes automático
+- Dashboard com gráficos (Recharts)
+- Relatório exportável (CSV)
+- Geração automática de mensalidades (cron) automático
+- Dashboard com gráficos (Recharts)
+- Relatório exportável (CSV)
+- Geração automática de mensalidades (cron)
 
 ### 4.5 Notificações
 - Confirmação via e-mail (Brevo)
@@ -69,12 +76,13 @@ Socio Desk é um SaaS multi-tenant para gestão de reservas de associações rec
 
 | Camada | Tecnologia |
 |--------|------------|
-| Frontend | Next.js 14 (App Router), React 18, TypeScript |
+| Frontend | Next.js 16 (App Router), React 18, TypeScript |
 | Estilização | Tailwind CSS, shadcn/ui |
 | ORM | Drizzle ORM |
 | Auth | Better Auth |
 | Database | PostgreSQL 16 (Coolify) |
 | E-mail | Brevo (Sendinblue) |
+| Charts | Recharts |
 | Storage | MinIO (local), Backblaze B2 (prod) |
 | Deploy | Coolify na VPS |
 
