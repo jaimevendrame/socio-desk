@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { users, accounts } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,63 +13,83 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user by email
-    const userResult = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
+    const authRequest = new NextRequest(
+      new URL('/api/auth/sign-in/email', request.url),
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': request.headers.get('cookie') || '',
+        },
+        body: JSON.stringify({ email, password }),
+      }
+    );
 
-    if (!userResult.length) {
+    const response = await auth.handler(authRequest);
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = { error: 'Erro ao fazer login' };
+      }
       return NextResponse.json(
-        { error: 'Email ou senha invalidos' },
-        { status: 401 }
+        { error: errorData.error || 'Email ou senha invalidos' },
+        { status: response.status }
       );
     }
 
-    const user = userResult[0];
+    const data = await response.json();
 
-    // Find account with password
-    const accountsResult = await db
-      .select()
-      .from(accounts)
-      .where(eq(accounts.userId, user.id));
+    // Forward todos os set-cookie headers para o cliente
+    const setCookieHeaders: string[] = [];
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'set-cookie') {
+        setCookieHeaders.push(value.split(',')[0].trim());
+      }
+    });
 
-    const accountWithPassword = accountsResult.find(acc => acc.password);
-
-    if (!accountWithPassword?.password) {
-      return NextResponse.json(
-        { error: 'Email ou senha invalidos' },
-        { status: 401 }
-      );
+    // Obter tenantId do usuario logado
+    let tenantId: string | undefined;
+    try {
+      const sessionHeaders = new Headers();
+      const sessionCookie = setCookieHeaders[0];
+      if (sessionCookie) {
+        sessionHeaders.set('cookie', sessionCookie.split(';')[0]);
+      }
+      const sessionResponse = await auth.api.getSession({
+        headers: sessionHeaders,
+      });
+      if (sessionResponse?.user) {
+        tenantId = (sessionResponse.user as any).tenantId;
+      }
+    } catch {
+      // Continuar mesmo se falhar
     }
 
-    // Simple password check (in production use bcrypt)
-    const storedHash = accountWithPassword.password;
-    const hashParts = storedHash.split(':');
-    if (hashParts.length !== 2) {
-      return NextResponse.json(
-        { error: 'Email ou senha invalidos' },
-        { status: 401 }
-      );
-    }
-
-    // Create session
-    const sessionId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-    return NextResponse.json({
+    const jsonResponse = new NextResponse(JSON.stringify({
       user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
+        id: data.user?.id,
+        name: data.user?.name,
+        email: data.user?.email,
+        image: data.user?.image,
+        tenantId,
       },
       session: {
-        id: sessionId,
-        expiresAt: expiresAt.toISOString(),
+        id: data.session?.id || data.token,
+        expiresAt: data.session?.expiresAt,
       },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
     });
+
+    for (const cookie of setCookieHeaders) {
+      jsonResponse.headers.append('set-cookie', cookie);
+    }
+
+    return jsonResponse;
   } catch (error: any) {
     console.error('Sign in error:', error);
     return NextResponse.json(

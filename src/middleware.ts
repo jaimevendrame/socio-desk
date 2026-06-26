@@ -5,13 +5,6 @@ import { auth } from '@/lib/auth';
 const protectedRoutes = ['/dashboard', '/reservar', '/reservas', '/perfil', '/escritorio', '/admin', '/master'];
 const authRoutes = ['/login', '/register', '/forgot-password'];
 
-const roleRoutes: Record<string, string[]> = {
-  member: ['/dashboard', '/reservar', '/reservas', '/perfil'],
-  team: ['/escritorio'],
-  admin: ['/admin'],
-  master: ['/master'],
-};
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));

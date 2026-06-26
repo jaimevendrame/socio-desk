@@ -42,74 +42,75 @@ const DEFAULT_TENANT = {
   tenantSlug: "dev",
 };
 
-async function getServerTenant() {
+interface ServerContext {
+  tenant: {
+    tenantId: string;
+    tenantName: string;
+    tenantSlug: string;
+  };
+  session: ServerSession | null;
+}
+
+async function getServerContext(): Promise<ServerContext> {
   try {
     const cookieStore = await cookies();
-    const session = await auth.api.getSession({
-      headers: { cookie: cookieStore.toString() },
-    });
+    const cookieHeader = { cookie: cookieStore.toString() };
 
-    if (!session?.user?.id) {
-      return DEFAULT_TENANT;
+    const [session] = await Promise.all([
+      auth.api.getSession({ headers: cookieHeader }),
+    ]);
+
+    if (!session) {
+      return { tenant: DEFAULT_TENANT, session: null };
     }
 
     // Buscar tenant real do banco via teamMembers
-    const memberResult = await db
-      .select({ tenantId: teamMembers.tenantId })
-      .from(teamMembers)
-      .where(eq(teamMembers.userId, session.user.id))
-      .limit(1);
+    let tenant = DEFAULT_TENANT;
 
-    if (!memberResult[0]) {
-      return DEFAULT_TENANT;
+    try {
+      const memberResult = await db
+        .select({ tenantId: teamMembers.tenantId })
+        .from(teamMembers)
+        .where(eq(teamMembers.userId, session.user.id))
+        .limit(1);
+
+      if (memberResult[0]) {
+        const tenantResult = await db
+          .select({ name: tenants.name, slug: tenants.slug })
+          .from(tenants)
+          .where(eq(tenants.id, memberResult[0].tenantId))
+          .limit(1);
+
+        if (tenantResult[0]) {
+          tenant = {
+            tenantId: memberResult[0].tenantId,
+            tenantName: tenantResult[0].name,
+            tenantSlug: tenantResult[0].slug,
+          };
+        }
+      }
+    } catch (dbError) {
+      console.error("[ServerContext] Error fetching tenant:", dbError);
     }
 
-    const tenantResult = await db
-      .select({ name: tenants.name, slug: tenants.slug })
-      .from(tenants)
-      .where(eq(tenants.id, memberResult[0].tenantId))
-      .limit(1);
-
-    if (!tenantResult[0]) {
-      return DEFAULT_TENANT;
-    }
-
-    return {
-      tenantId: memberResult[0].tenantId,
-      tenantName: tenantResult[0].name,
-      tenantSlug: tenantResult[0].slug,
-    };
-  } catch (error) {
-    console.error("[ServerTenant] Error fetching tenant:", error);
-    return DEFAULT_TENANT;
-  }
-}
-
-async function getServerSession(): Promise<ServerSession | null> {
-  try {
-    const cookieStore = await cookies();
-    const session = await auth.api.getSession({
-      headers: { cookie: cookieStore.toString() },
-    });
-
-    if (!session) return null;
-
-    return {
+    const serverSession: ServerSession = {
       user: {
         id: session.user.id,
         name: session.user.name ?? null,
         email: session.user.email,
         image: session.user.image ?? null,
-        tenantId: (session.user as any).tenantId,
+        tenantId: tenant.tenantId,
       },
       session: {
         id: session.session.id,
         expiresAt: session.session.expiresAt.toString(),
       },
     };
+
+    return { tenant, session: serverSession };
   } catch (error) {
-    console.error("[ServerSession] Error fetching session:", error);
-    return null;
+    console.error("[ServerContext] Error:", error);
+    return { tenant: DEFAULT_TENANT, session: null };
   }
 }
 
@@ -118,10 +119,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [initialTenant, initialSession] = await Promise.all([
-    getServerTenant(),
-    getServerSession(),
-  ]);
+  const { tenant: initialTenant, session: initialSession } = await getServerContext();
 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
