@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Filter, MoreHorizontal, Mail, Phone, Building, BadgeCheck } from 'lucide-react';
+import { Search, Plus, Filter, MoreHorizontal, Mail, Phone, Building, BadgeCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +26,7 @@ interface Member {
   workplaceId: string | null;
   admissionDate: string | null;
   createdAt: string;
+  registrationNumber?: string | null;
 }
 
 interface MembersApiResponse {
@@ -36,6 +37,11 @@ interface MembersApiResponse {
     total: number;
     totalPages: number;
   };
+}
+
+interface Workplace {
+  id: string;
+  name: string;
 }
 
 const statusColors = {
@@ -56,6 +62,11 @@ export default function MembersListPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>('all');
   const [typeFilter, setTypeFilter] = useState<string | null>('all');
+  const [cpfFilter, setCpfFilter] = useState('');
+  const [registrationFilter, setRegistrationFilter] = useState('');
+  const [workplaceFilter, setWorkplaceFilter] = useState<string | null>(null);
+  const [workplaces, setWorkplaces] = useState<Workplace[]>([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +75,22 @@ export default function MembersListPage() {
   const handleImportComplete = useCallback(() => {
     setRefreshKey((k) => k + 1);
   }, []);
+
+  // Fetch workplaces for filter
+  useEffect(() => {
+    async function fetchWorkplaces() {
+      try {
+        const response = await fetch(buildApiUrl('/api/workplaces', tenantId));
+        if (response.ok) {
+          const data = await response.json();
+          setWorkplaces(data.data || []);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar locais de trabalho:', err);
+      }
+    }
+    fetchWorkplaces();
+  }, [tenantId]);
 
   useEffect(() => {
     async function fetchMembers() {
@@ -75,6 +102,9 @@ export default function MembersListPage() {
         if (search) params.search = search;
         if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
         if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
+        if (cpfFilter) params.cpf = cpfFilter;
+        if (registrationFilter) params.registrationNumber = registrationFilter;
+        if (workplaceFilter && workplaceFilter !== 'all') params.workplaceId = workplaceFilter;
         const url = buildApiUrl('/api/members', tenantId, params);
         const response = await fetch(url);
         if (!response.ok) throw new Error('Erro ao carregar associados');
@@ -87,7 +117,7 @@ export default function MembersListPage() {
       }
     }
     fetchMembers();
-  }, [tenantId, search, statusFilter, typeFilter, refreshKey]);
+  }, [tenantId, search, statusFilter, typeFilter, cpfFilter, registrationFilter, workplaceFilter, refreshKey]);
 
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
@@ -172,6 +202,7 @@ export default function MembersListPage() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
+          {/* Main search row */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -206,8 +237,54 @@ export default function MembersListPage() {
                   <SelectItem value="dependente_maior">Dependente</SelectItem>
                 </SelectContent>
               </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className={showAdvanced ? 'bg-accent' : ''}
+              >
+                {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
             </div>
           </div>
+
+          {/* Advanced filters */}
+          {showAdvanced && (
+            <div className="mt-4 pt-4 border-t grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">CPF</label>
+                <Input
+                  placeholder="Buscar por CPF..."
+                  value={cpfFilter}
+                  onChange={(e) => setCpfFilter(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Matrícula</label>
+                <Input
+                  placeholder="Buscar por matrícula..."
+                  value={registrationFilter}
+                  onChange={(e) => setRegistrationFilter(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Local de Trabalho</label>
+                <Select value={workplaceFilter || 'all'} onValueChange={(v) => setWorkplaceFilter(v === 'all' ? null : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {workplaces.map((wp) => (
+                      <SelectItem key={wp.id} value={wp.id}>
+                        {wp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -51,6 +51,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const status = searchParams.get('status');
     const type = searchParams.get('type');
+    const cpf = searchParams.get('cpf');
+    const registrationNumber = searchParams.get('registrationNumber');
+    const workplaceId = searchParams.get('workplaceId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
@@ -84,6 +87,18 @@ export async function GET(request: NextRequest) {
             like(members.email, `%${search}%`)
           )!
         );
+      }
+
+      if (cpf) {
+        conditions.push(like(members.cpf, `%${cpf}%`));
+      }
+
+      if (registrationNumber) {
+        conditions.push(like(members.registrationNumber, `%${registrationNumber}%`));
+      }
+
+      if (workplaceId) {
+        conditions.push(eq(members.workplaceId, workplaceId));
       }
 
       const result = await db
