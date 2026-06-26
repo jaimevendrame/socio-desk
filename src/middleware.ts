@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { auth } from '@/lib/auth';
 
 const protectedRoutes = ['/dashboard', '/reservar', '/reservas', '/perfil', '/escritorio', '/admin', '/master'];
 const authRoutes = ['/login', '/register', '/forgot-password'];
@@ -11,15 +10,29 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 
   if (isProtectedRoute || isAuthRoute) {
-    const session = await auth.api.getSession({ headers: request.headers });
+    // Chamar rota interna Node.js para verificar sessão
+    // (Edge Runtime não suporta node:util/types usado por better-auth)
+    const sessionUrl = new URL('/api/auth/session-internal', request.url);
+    const sessionResponse = await fetch(sessionUrl.toString(), {
+      method: 'GET',
+      headers: {
+        cookie: request.headers.get('cookie') || '',
+      },
+    });
 
-    if (isProtectedRoute && !session) {
+    let authenticated = false;
+    if (sessionResponse.ok) {
+      const data = await sessionResponse.json();
+      authenticated = data.authenticated === true;
+    }
+
+    if (isProtectedRoute && !authenticated) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
-    if (isAuthRoute && session) {
+    if (isAuthRoute && authenticated) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
@@ -34,14 +47,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for:
-     * - api routes (handled by API handlers)
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico
-     * - public files (public/)
-     */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|public/).*)',
+    '/((?!api/auth/session-internal|api/auth|_next/static|_next/image|favicon.ico|public/).*)',
   ],
 };

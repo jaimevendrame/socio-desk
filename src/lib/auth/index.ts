@@ -1,9 +1,15 @@
 // Better Auth Configuration
 import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { db } from '@/lib/db';
+import * as schema from '@/lib/db/schema';
 
 export const auth = betterAuth({
-  database: db,
+  database: drizzleAdapter(db, {
+    provider: 'pg',
+    schema,
+    usePlural: true,
+  }),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
@@ -14,22 +20,25 @@ export const auth = betterAuth({
   },
   callbacks: {
     async session({ session, user }: { session: any; user: any }) {
-      // TODO: Buscar tenantId real da tabela teamMembers pelo userId
-      // Por enquanto usando demo tenant — CORRIGIR antes de production
       if (user && session?.user) {
-        session.user.tenantId = '1bdd8429-6dce-42ea-bf5b-6dc39a7a5490';
+        try {
+          const member = await db.query.teamMembers?.findFirst?.({
+            where: (tm, { eq }) => eq(tm.userId, user.id),
+          });
+          if (member) {
+            session.user.tenantId = member.tenantId;
+          }
+        } catch {
+          // Silently fail — layout.tsx tambem busca tenant
+        }
       }
       return session;
     },
   },
   advanced: {
     useSecureCookies: process.env.NODE_ENV === 'production',
+    trustedOrigins: ['http://localhost:3000', 'http://localhost:3001'],
   },
-  // Social providers can be added later
-  // google: {
-  //   clientId: process.env.GOOGLE_CLIENT_ID!,
-  //   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-  // },
 });
 
 export type Session = typeof auth.$Infer.Session;

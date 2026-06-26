@@ -57,6 +57,7 @@ export const sessions = pgTable('sessions', {
   ipAddress: varchar('ip_address', { length: 100 }),
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 export const accounts = pgTable('accounts', {

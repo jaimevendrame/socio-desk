@@ -2,47 +2,52 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
+  let body: { email?: string; password?: string };
+
   try {
-    const body = await request.json();
-    const { email, password } = body;
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Body invalido' }, { status: 400 });
+  }
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email e senha sao obrigatorios' },
-        { status: 400 }
-      );
-    }
+  const { email, password } = body;
 
-    const authRequest = new NextRequest(
-      new URL('/api/auth/sign-in/email', request.url),
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cookie': request.headers.get('cookie') || '',
-        },
-        body: JSON.stringify({ email, password }),
-      }
+  if (!email || !password) {
+    return NextResponse.json(
+      { error: 'Email e senha sao obrigatorios' },
+      { status: 400 }
     );
+  }
+
+  try {
+    const bodyString = JSON.stringify({ email, password });
+    const origin = request.headers.get('origin') || `${new URL(request.url).protocol}//${new URL(request.url).host}`;
+
+    const authRequest = new NextRequest(request.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': request.headers.get('cookie') || '',
+        'Origin': origin,
+      },
+      body: bodyString,
+    });
 
     const response = await auth.handler(authRequest);
+    const responseBody = await response.text();
 
     if (!response.ok) {
-      let errorData;
+      let errorMsg = 'Email ou senha invalidos';
       try {
-        errorData = await response.json();
-      } catch {
-        errorData = { error: 'Erro ao fazer login' };
-      }
-      return NextResponse.json(
-        { error: errorData.error || 'Email ou senha invalidos' },
-        { status: response.status }
-      );
+        const errorData = JSON.parse(responseBody);
+        errorMsg = errorData.error || errorData.message || errorMsg;
+      } catch { /* use default */ }
+      return NextResponse.json({ error: errorMsg }, { status: response.status });
     }
 
-    const data = await response.json();
+    const data = JSON.parse(responseBody);
 
-    // Forward todos os set-cookie headers para o cliente
+    // Forward set-cookie headers
     const setCookieHeaders: string[] = [];
     response.headers.forEach((value, key) => {
       if (key.toLowerCase() === 'set-cookie') {
@@ -50,7 +55,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Obter tenantId do usuario logado
+    // Get tenantId from session
     let tenantId: string | undefined;
     try {
       const sessionHeaders = new Headers();
@@ -58,15 +63,11 @@ export async function POST(request: NextRequest) {
       if (sessionCookie) {
         sessionHeaders.set('cookie', sessionCookie.split(';')[0]);
       }
-      const sessionResponse = await auth.api.getSession({
-        headers: sessionHeaders,
-      });
+      const sessionResponse = await auth.api.getSession({ headers: sessionHeaders });
       if (sessionResponse?.user) {
         tenantId = (sessionResponse.user as any).tenantId;
       }
-    } catch {
-      // Continuar mesmo se falhar
-    }
+    } catch { /* continue */ }
 
     const jsonResponse = new NextResponse(JSON.stringify({
       user: {
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     return jsonResponse;
   } catch (error: any) {
-    console.error('Sign in error:', error);
+    console.error('[SignIn] Error:', error);
     return NextResponse.json(
       { error: 'Erro ao fazer login: ' + error.message },
       { status: 500 }
