@@ -102,9 +102,9 @@ export default function OfficeDashboardPage() {
               <MotionCard className="bg-card border-border rounded-xl p-5">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-2xl font-semibold tracking-tight text-foreground">
+                    <div className="text-2xl font-semibold tracking-tight text-foreground">
                       {loading ? <Skeleton className="h-8 w-16" /> : stat.value}
-                    </p>
+                    </div>
                     <p className="text-sm text-muted-foreground mt-0.5">{stat.sub}</p>
                   </div>
                   <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.color}`}>
