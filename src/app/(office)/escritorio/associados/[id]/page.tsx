@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
 import { DependentDialog, DeleteDependentDialog } from '@/components/office/members/dependent-dialog';
+import { PhotoUpload } from '@/components/office/members/photo-upload';
 
 interface Member {
   id: string;
@@ -37,6 +38,7 @@ interface Member {
   registrationNumber: string | null;
   admissionDate: string | null;
   jobTitle: string | null;
+  photoUrl?: string | null;
 }
 
 interface Dependent {
@@ -159,6 +161,30 @@ export default function MemberDetailPage() {
     return new Date(dateStr).toLocaleDateString('pt-BR');
   };
 
+  const handlePhotoUpload = async (url: string) => {
+    if (!member || !tenantId) return;
+
+    try {
+      const response = await fetch(
+        buildApiUrl(`/api/members/${member.id}`, tenantId),
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-tenant-id': tenantId,
+          },
+          body: JSON.stringify({ photoUrl: url || null }),
+        }
+      );
+
+      if (response.ok) {
+        setMember((m) => m ? { ...m, photoUrl: url || null } : m);
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar foto:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -187,17 +213,19 @@ export default function MemberDetailPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/escritorio/associados" className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-accent">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              <AvatarFallback className="text-lg bg-primary text-primary-foreground">
-                {member.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
-              </AvatarFallback>
-            </Avatar>
+            <PhotoUpload
+              currentPhotoUrl={member.photoUrl}
+              memberId={member.id}
+              onUploadComplete={handlePhotoUpload}
+              size="md"
+            />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold">{member.name}</h1>

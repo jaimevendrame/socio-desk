@@ -27,6 +27,7 @@ const updateMemberSchema = z.object({
   registrationNumber: z.string().optional().nullable(),
   admissionDate: z.string().optional().nullable(),
   jobTitle: z.string().optional().nullable(),
+  photoUrl: z.string().url().optional().nullable(),
 });
 
 // GET /api/members/[id] - Obter membro por ID
