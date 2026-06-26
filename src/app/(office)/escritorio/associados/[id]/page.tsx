@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Save, Calendar, CreditCard, Users, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
+import { DependentDialog, DeleteDependentDialog } from '@/components/office/members/dependent-dialog';
 
 interface Member {
   id: string;
@@ -40,9 +41,13 @@ interface Member {
 
 interface Dependent {
   id: string;
+  memberId: string;
+  type: 'conjuge' | 'filho' | 'enteado' | 'pais' | 'irmao' | 'outro';
   name: string;
-  type: string;
   birthDate: string;
+  documentType?: 'rg' | 'cpf' | 'passaporte' | null;
+  documentNumber?: string | null;
+  status: 'ativo' | 'inativo' | 'migrado';
 }
 
 interface Reservation {
@@ -80,6 +85,12 @@ const typeLabels: Record<string, string> = {
   afiliado: 'Afiliado',
   convidado: 'Convidado',
   dependente_maior: 'Dependente',
+  conjuge: 'Cônjuge',
+  filho: 'Filho(a)',
+  enteado: 'Enteado(a)',
+  pais: 'Pais',
+  irmao: 'Irmão(ã)',
+  outro: 'Outro',
 };
 
 export default function MemberDetailPage() {
@@ -92,13 +103,27 @@ export default function MemberDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
 
+  const fetchDependents = useCallback(async () => {
+    if (!params.id || !tenantId) return;
+    try {
+      const depsRes = await fetch(
+        buildApiUrl('/api/dependents', tenantId, { memberId: params.id as string })
+      );
+      if (depsRes.ok) {
+        const data = await depsRes.json();
+        setDependents(data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar dependentes:', err);
+    }
+  }, [params.id, tenantId]);
+
   useEffect(() => {
     async function fetchMemberData() {
       try {
         setLoading(true);
-        const [memberRes, depsRes, resRes, payRes] = await Promise.all([
+        const [memberRes, resRes, payRes] = await Promise.all([
           fetch(buildApiUrl(`/api/members/${params.id}`, tenantId)),
-          fetch(buildApiUrl(`/api/members/${params.id}/dependents`, tenantId)),
           fetch(buildApiUrl('/api/reservations', tenantId, { memberId: params.id as string })),
           fetch(buildApiUrl('/api/payments', tenantId, { memberId: params.id as string })),
         ]);
@@ -108,7 +133,6 @@ export default function MemberDetailPage() {
           setMember(data);
         }
 
-        // Ajustar URLs - API de members nao tem dependents单独的
         if (resRes.ok) {
           const data = await resRes.json();
           setReservations(data.data || []);
@@ -126,8 +150,9 @@ export default function MemberDetailPage() {
     }
     if (params.id) {
       fetchMemberData();
+      fetchDependents();
     }
-  }, [params.id]);
+  }, [params.id, tenantId, fetchDependents]);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
@@ -307,10 +332,10 @@ export default function MemberDetailPage() {
                 <CardTitle className="text-lg">Dependentes</CardTitle>
                 <CardDescription>Familiares cadastrados</CardDescription>
               </div>
-              <Button size="sm">
-                <Users className="mr-2 h-4 w-4" />
-                Adicionar
-              </Button>
+              <DependentDialog
+                memberId={params.id as string}
+                onSave={fetchDependents}
+              />
             </CardHeader>
             <CardContent>
               {dependents.length === 0 ? (
@@ -330,7 +355,22 @@ export default function MemberDetailPage() {
                           </p>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm">Editar</Button>
+                      <div className="flex gap-2">
+                        <DependentDialog
+                          memberId={params.id as string}
+                          dependent={dep}
+                          onSave={fetchDependents}
+                          trigger={
+                            <Button variant="outline" size="sm">
+                              Editar
+                            </Button>
+                          }
+                        />
+                        <DeleteDependentDialog
+                          dependent={dep}
+                          onDelete={fetchDependents}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
