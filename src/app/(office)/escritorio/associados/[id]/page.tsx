@@ -97,10 +97,10 @@ export default function MemberDetailPage() {
       try {
         setLoading(true);
         const [memberRes, depsRes, resRes, payRes] = await Promise.all([
-          fetch(buildApiUrl(`/api/members/${params.id}`)),
-          fetch(buildApiUrl(`/api/members/${params.id}`) + '/dependents'),
-          fetch(buildApiUrl('/api/reservations', { memberId: params.id as string })),
-          fetch(buildApiUrl('/api/payments', { memberId: params.id as string })),
+          fetch(buildApiUrl(`/api/members/${params.id}`, tenantId)),
+          fetch(buildApiUrl(`/api/members/${params.id}/dependents`, tenantId)),
+          fetch(buildApiUrl('/api/reservations', tenantId, { memberId: params.id as string })),
+          fetch(buildApiUrl('/api/payments', tenantId, { memberId: params.id as string })),
         ]);
 
         if (memberRes.ok) {

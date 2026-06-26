@@ -2,6 +2,20 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
+export interface ServerSession {
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    image: string | null;
+    tenantId?: string;
+  };
+  session: {
+    id: string;
+    expiresAt: string;
+  };
+}
+
 interface User {
   id: string;
   name: string | null;
@@ -28,13 +42,32 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session['session'] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export function AuthProvider({
+  children,
+  initialSession,
+}: {
+  children: ReactNode;
+  initialSession?: ServerSession | null;
+}) {
+  const [user, setUser] = useState<User | null>(
+    initialSession?.user ? {
+      id: initialSession.user.id,
+      name: initialSession.user.name,
+      email: initialSession.user.email,
+      image: initialSession.user.image,
+      tenantId: initialSession.user.tenantId,
+    } : null
+  );
+  const [session, setSession] = useState<Session['session'] | null>(
+    initialSession?.session ? {
+      id: initialSession.session.id,
+      expiresAt: initialSession.session.expiresAt,
+    } : null
+  );
+  const [isLoading, setIsLoading] = useState(!initialSession);
 
   useEffect(() => {
-    // Check for existing session on mount
+    if (initialSession) return;
     checkSession();
   }, []);
 

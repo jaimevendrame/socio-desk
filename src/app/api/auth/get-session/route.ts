@@ -20,6 +20,7 @@ export async function GET() {
         name: session.user.name,
         email: session.user.email,
         image: session.user.image,
+        tenantId: (session.user as any).tenantId,
       },
       session: {
         id: session.session.id,

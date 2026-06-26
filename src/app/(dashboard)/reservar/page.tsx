@@ -51,7 +51,7 @@ export default function NewReservationPage() {
     async function fetchSpaces() {
       try {
         setSpacesLoading(true);
-        const url = buildApiUrl('/api/spaces');
+        const url = buildApiUrl('/api/spaces', tenantId);
         const response = await fetch(url);
         if (!response.ok) throw new Error('Erro ao carregar espaços');
         const data = await response.json();
@@ -83,7 +83,7 @@ export default function NewReservationPage() {
 
     setSubmitLoading(true);
     try {
-      const url = buildApiUrl('/api/reservations');
+      const url = buildApiUrl('/api/reservations', tenantId);
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

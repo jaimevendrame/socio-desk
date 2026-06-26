@@ -31,23 +31,22 @@ export default function OfficeDashboardPage() {
       try {
         setLoading(true);
 
-        const reservationsUrl = buildApiUrl('/api/reservations', {
-          tenantId,
+        const reservationsUrl = buildApiUrl('/api/reservations', tenantId, {
           startDate: today,
           endDate: today,
         });
         const reservationsRes = await fetch(reservationsUrl);
         const reservationsData = reservationsRes.ok ? await reservationsRes.json() : { data: [] };
 
-        const membersUrl = buildApiUrl('/api/members', { tenantId, status: 'ativo' });
+        const membersUrl = buildApiUrl('/api/members', tenantId, { status: 'ativo' });
         const membersRes = await fetch(membersUrl);
         const membersData = membersRes.ok ? await membersRes.json() : { data: [] };
 
-        const defaultersUrl = buildApiUrl('/api/members', { tenantId, status: 'inadimplente' });
+        const defaultersUrl = buildApiUrl('/api/members', tenantId, { status: 'inadimplente' });
         const defaultersRes = await fetch(defaultersUrl);
         const defaultersData = defaultersRes.ok ? await defaultersRes.json() : { data: [] };
 
-        const spacesUrl = buildApiUrl('/api/spaces', { tenantId });
+        const spacesUrl = buildApiUrl('/api/spaces', tenantId);
         const spacesRes = await fetch(spacesUrl);
         const spacesData = spacesRes.ok ? await spacesRes.json() : { data: [] };
 

@@ -71,7 +71,7 @@ export default function FinancialPage() {
     async function fetchPayments() {
       try {
         setLoading(true);
-        const url = buildApiUrl('/api/payments');
+        const url = buildApiUrl('/api/payments', tenantId);
         const response = await fetch(url);
         if (!response.ok) throw new Error('Erro ao carregar pagamentos');
         const data: PaymentsApiResponse = await response.json();

@@ -52,7 +52,6 @@ export function useAvailability(options: UseAvailabilityOptions): UseAvailabilit
 
     try {
       const params: Record<string, string> = {
-        tenantId: options.tenantId,
         date: options.date,
       };
 
@@ -60,7 +59,7 @@ export function useAvailability(options: UseAvailabilityOptions): UseAvailabilit
         params.spaceId = options.spaceId;
       }
 
-      const url = buildApiUrl('/api/spaces/availability', params);
+      const url = buildApiUrl('/api/spaces/availability', options.tenantId ?? '', params);
       const response = await fetch(url);
 
       if (!response.ok) {

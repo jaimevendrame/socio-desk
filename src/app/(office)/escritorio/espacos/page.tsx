@@ -56,7 +56,7 @@ export default function SpacesListPage() {
     async function fetchSpaces() {
       try {
         setLoading(true);
-        const url = buildApiUrl('/api/spaces');
+        const url = buildApiUrl('/api/spaces', tenantId);
         const response = await fetch(url);
         if (!response.ok) throw new Error('Erro ao carregar espaços');
         const data: SpacesApiResponse = await response.json();

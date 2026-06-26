@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { buildApiUrl } from '@/lib/context/tenant-context';
+import { buildApiUrl, useTenant } from '@/lib/context/tenant-context';
 
 interface Space {
   id: string;
@@ -58,6 +58,7 @@ const categoryLabels: Record<string, string> = {
 
 export default function SpaceDetailPage() {
   const params = useParams();
+  const { tenantId } = useTenant();
   const [space, setSpace] = useState<Space | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,8 +69,8 @@ export default function SpaceDetailPage() {
       try {
         setLoading(true);
         const [spaceRes, resRes] = await Promise.all([
-          fetch(buildApiUrl(`/api/spaces/${params.id}`)),
-          fetch(buildApiUrl('/api/reservations', { spaceId: params.id as string })),
+          fetch(buildApiUrl(`/api/spaces/${params.id}`, tenantId)),
+          fetch(buildApiUrl('/api/reservations', tenantId, { spaceId: params.id as string })),
         ]);
 
         if (spaceRes.ok) {

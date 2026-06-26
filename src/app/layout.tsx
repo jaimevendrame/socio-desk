@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { TenantProvider } from "@/lib/context/tenant-context";
-import { AuthProvider } from "@/lib/auth/client";
+import { AuthProvider, type ServerSession } from "@/lib/auth/client";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { tenants, teamMembers } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -31,16 +36,98 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+const DEFAULT_TENANT = {
+  tenantId: "1bdd8429-6dce-42ea-bf5b-6dc39a7a5490",
+  tenantName: "Clube Exemplo",
+  tenantSlug: "dev",
+};
+
+async function getServerTenant() {
+  try {
+    const cookieStore = await cookies();
+    const session = await auth.api.getSession({
+      headers: { cookie: cookieStore.toString() },
+    });
+
+    if (!session?.user?.id) {
+      return DEFAULT_TENANT;
+    }
+
+    // Buscar tenant real do banco via teamMembers
+    const memberResult = await db
+      .select({ tenantId: teamMembers.tenantId })
+      .from(teamMembers)
+      .where(eq(teamMembers.userId, session.user.id))
+      .limit(1);
+
+    if (!memberResult[0]) {
+      return DEFAULT_TENANT;
+    }
+
+    const tenantResult = await db
+      .select({ name: tenants.name, slug: tenants.slug })
+      .from(tenants)
+      .where(eq(tenants.id, memberResult[0].tenantId))
+      .limit(1);
+
+    if (!tenantResult[0]) {
+      return DEFAULT_TENANT;
+    }
+
+    return {
+      tenantId: memberResult[0].tenantId,
+      tenantName: tenantResult[0].name,
+      tenantSlug: tenantResult[0].slug,
+    };
+  } catch (error) {
+    console.error("[ServerTenant] Error fetching tenant:", error);
+    return DEFAULT_TENANT;
+  }
+}
+
+async function getServerSession(): Promise<ServerSession | null> {
+  try {
+    const cookieStore = await cookies();
+    const session = await auth.api.getSession({
+      headers: { cookie: cookieStore.toString() },
+    });
+
+    if (!session) return null;
+
+    return {
+      user: {
+        id: session.user.id,
+        name: session.user.name ?? null,
+        email: session.user.email,
+        image: session.user.image ?? null,
+        tenantId: (session.user as any).tenantId,
+      },
+      session: {
+        id: session.session.id,
+        expiresAt: session.session.expiresAt.toString(),
+      },
+    };
+  } catch (error) {
+    console.error("[ServerSession] Error fetching session:", error);
+    return null;
+  }
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [initialTenant, initialSession] = await Promise.all([
+    getServerTenant(),
+    getServerSession(),
+  ]);
+
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${inter.variable} ${geistMono.variable} min-h-screen antialiased font-sans`}>
-        <AuthProvider>
-          <TenantProvider>
+        <AuthProvider initialSession={initialSession}>
+          <TenantProvider initialTenant={initialTenant}>
             {children}
           </TenantProvider>
         </AuthProvider>

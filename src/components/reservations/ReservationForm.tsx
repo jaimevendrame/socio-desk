@@ -57,7 +57,7 @@ export function ReservationForm({ spaceId, date, onSuccess }: ReservationFormPro
 
     try {
       // Carregar membros
-      const membersUrl = buildApiUrl('/api/members', { tenantId });
+      const membersUrl = buildApiUrl('/api/members', tenantId);
       const membersRes = await fetch(membersUrl);
       if (membersRes.ok) {
         const data = await membersRes.json();
@@ -65,7 +65,7 @@ export function ReservationForm({ spaceId, date, onSuccess }: ReservationFormPro
       }
 
       // Carregar espaços
-      const spacesUrl = buildApiUrl('/api/spaces', { tenantId });
+      const spacesUrl = buildApiUrl('/api/spaces', tenantId);
       const spacesRes = await fetch(spacesUrl);
       if (spacesRes.ok) {
         const data = await spacesRes.json();

@@ -61,7 +61,7 @@ export function RegisterPaymentDialog({
 
       setIsFetchingMembers(true);
       try {
-        const response = await fetch(buildApiUrl(`/api/members?tenantId=${tenantId}`));
+        const response = await fetch(buildApiUrl('/api/members', tenantId));
         if (response.ok) {
           const data = await response.json();
           setMembers(data.data || []);
@@ -88,7 +88,7 @@ export function RegisterPaymentDialog({
     setError(null);
 
     try {
-      const response = await fetch(buildApiUrl('/api/payments'), {
+      const response = await fetch(buildApiUrl('/api/payments', tenantId), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

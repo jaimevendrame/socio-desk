@@ -69,7 +69,7 @@ export default function MembersListPage() {
         if (search) params.search = search;
         if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
         if (typeFilter && typeFilter !== 'all') params.type = typeFilter;
-        const url = buildApiUrl('/api/members', params);
+        const url = buildApiUrl('/api/members', tenantId, params);
         const response = await fetch(url);
         if (!response.ok) throw new Error('Erro ao carregar associados');
         const data: MembersApiResponse = await response.json();

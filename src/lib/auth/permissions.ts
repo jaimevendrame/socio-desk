@@ -81,7 +81,10 @@ export async function requireAuth(request: NextRequest) {
  */
 export async function getUserRole(tenantId: string, userId: string): Promise<UserRole | null> {
   const member = await db.query.teamMembers?.findFirst?.({
-    where: eq(teamMembers.tenantId, tenantId as `${string}-${string}-${string}-${string}-${string}`),
+    where: (tm, { eq, and }) => and(
+      eq(tm.tenantId, tenantId),
+      eq(tm.userId, userId)
+    ),
   });
   return (member?.role as UserRole) ?? null;
 }

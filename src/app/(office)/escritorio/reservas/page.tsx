@@ -45,8 +45,7 @@ export default function CalendarPage() {
       const startStr = startOfMonthDate.toISOString().split('T')[0];
       const endStr = endOfMonthDate.toISOString().split('T')[0];
 
-      const url = buildApiUrl('/api/reservations', {
-        tenantId,
+      const url = buildApiUrl('/api/reservations', tenantId, {
         startDate: startStr,
         endDate: endStr,
       });

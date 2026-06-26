@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { buildApiUrl } from '@/lib/context/tenant-context';
+import { buildApiUrl, useTenant } from '@/lib/context/tenant-context';
 
 interface PaymentDialogProps {
   payment: {
@@ -38,6 +38,7 @@ const paymentMethods = [
 ];
 
 export function PaymentDialog({ payment, onSuccess, trigger }: PaymentDialogProps) {
+  const { tenantId } = useTenant();
   const [open, setOpen] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<string>('');
   const [notes, setNotes] = useState('');
@@ -54,7 +55,7 @@ export function PaymentDialog({ payment, onSuccess, trigger }: PaymentDialogProp
     setError(null);
 
     try {
-      const response = await fetch(buildApiUrl(`/api/payments/${payment.id}/mark-paid`), {
+      const response = await fetch(buildApiUrl(`/api/payments/${payment.id}/mark-paid`, tenantId), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

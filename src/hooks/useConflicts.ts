@@ -48,7 +48,6 @@ export function useConflictCheck(): UseConflictCheckResult {
 
     try {
       const searchParams = new URLSearchParams({
-        tenantId: params.tenantId,
         spaceId: params.spaceId,
         date: params.date,
         startTime: params.startTime,
@@ -59,7 +58,7 @@ export function useConflictCheck(): UseConflictCheckResult {
         searchParams.set('excludeReservationId', params.excludeReservationId);
       }
 
-      const url = buildApiUrl(`/api/reservations/check-conflict?${searchParams.toString()}`);
+      const url = buildApiUrl('/api/reservations/check-conflict', params.tenantId);
 
       const response = await fetch(url);
 
