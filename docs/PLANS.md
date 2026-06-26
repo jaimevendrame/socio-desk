@@ -2,13 +2,13 @@
 
 > ⚠️ **NOTA IMPORTANTE — Status Real do Projeto**
 >
-> As milestones marcadas como ✅ estão com a **UI/core funcional**, mas possuem **funcionalidades pendentes** listadas em cada seção. O projeto está em ~60% de completion do MVP.
+> As milestones marcadas como ✅ estão com a **UI/core funcional**, mas possuem **funcionalidades pendentes** listadas em cada seção. O projeto está em ~65% de completion do MVP.
 >
-> **Gaps CRÍTICOS que impedem deploy em produção:**
-> 1. Auth middleware com código commented (TODO)
-> 2. Tenant ID hardcoded (`DEMO_TENANT_ID`)
-> 3. getUserRole com query quebrada
-> 4. RLS não implementado
+> **Gaps CRÍTICOS resolvidos em 29/06/2026:**
+> 1. ✅ Auth middleware completo (`getSessionWithTenant()`)
+> 2. ✅ TenantContext dinâmico (`withTenantContext()` por request)
+> 3. ✅ getUserRole corrigido (db.query.teamMembers)
+> 4. ✅ RLS implementado (14/14 testes PASS, role `socio_app`)
 >
 > **Ver docs/notepad.md para análise detalhada de gaps e planejamento de correções.**
 
@@ -76,7 +76,7 @@ docker-compose.yml           # Postgres + MinIO
 ---
 
 ### ⚠️ M3 - Backend Essentials
-**Status:** ~70% Completo — funcionalidade core existe, funcionalidades avançadas pendentes
+**Status:** ~85% Completo — auth + RLS multi-tenant resolvidos, funcionalidades avançadas pendentes
 
 **Entregues:**
 - [x] APIs REST implementadas (members, spaces, reservations, payments)
@@ -87,7 +87,11 @@ docker-compose.yml           # Postgres + MinIO
 - [x] Banco de dados configurado (Docker + PostgreSQL)
 - [x] Schema aplicado (14 tabelas)
 - [x] Seed executado com dados de teste
-- [x] **Autenticação básica implementada**
+- [x] **Autenticação completa com tenantId dinâmico**
+- [x] **RLS multi-tenant implementado (14/14 testes PASS)**
+- [x] Rate limiting em todas as rotas
+- [x] getSessionWithTenant() — tenantId em todas as APIs
+- [x] withTenantContext() — isolamento por request
 
 **Pendente:**
 - [ ] CRUD Spaces completo (PATCH/DELETE APIs)
@@ -149,13 +153,13 @@ docker-compose.yml           # Postgres + MinIO
 ---
 
 ### 🚨 M6 - Polish & Deploy
-**Status:** Não iniciado — CRÍTICO: gaps de segurança impedem deploy
+**Status:** Em progresso — gaps de segurança resolvidos, deploy próximo
 
-**⚠️ ANTES DESTE MILESTONE — Corrigir gaps de segurança:**
-- [ ] Auth middleware completo (src/middleware.ts tem TODO commentado)
-- [ ] TenantContext dinâmico (remove DEMO_TENANT_ID hardcoded)
-- [ ] getUserRole corrigido (query quebrada em permissions.ts)
-- [ ] RLS preparado ou documentar isolamento por código
+**✅ Gaps de segurança resolvidos (29/06/2026):**
+- [x] Auth middleware completo
+- [x] TenantContext dinâmico (`withTenantContext()`)
+- [x] getUserRole corrigido
+- [x] RLS multi-tenant implementado (14/14 PASS)
 
 **Entregues planejadas:**
 - [ ] Testes E2E (Playwright)
