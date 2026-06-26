@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { withTenantContext } from '@/lib/db/tenant-context';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { getSessionWithTenant } from '@/lib/auth/session-with-tenant';
+import { notifyWaitlistOnCancel } from '@/lib/reservations/create-atomic';
 
 const updateReservationSchema = z.object({
   date: z.string().optional(),
@@ -141,6 +142,16 @@ export async function DELETE(
     }
 
     return withTenantContext(tenantId, userId, async () => {
+      // Busca dados da reserva antes de cancelar (para notificar waitlist)
+      const [existingReservation] = await db
+        .select()
+        .from(reservations)
+        .where(eq(reservations.id, id));
+
+      if (!existingReservation) {
+        return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
+      }
+
       const [cancelledReservation] = await db
         .update(reservations)
         .set({
@@ -152,8 +163,15 @@ export async function DELETE(
         .where(eq(reservations.id, id))
         .returning();
 
-      if (!cancelledReservation) {
-        return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
+      // Notifica primeiro da fila de espera
+      if (cancelledReservation) {
+        await notifyWaitlistOnCancel({
+          tenantId,
+          spaceId: cancelledReservation.spaceId,
+          date: cancelledReservation.date,
+          startTime: cancelledReservation.startTime,
+          endTime: cancelledReservation.endTime,
+        });
       }
 
       return NextResponse.json({ success: true, cancelled: cancelledReservation });

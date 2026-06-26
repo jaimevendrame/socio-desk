@@ -27,5 +27,5 @@ function createPool() {
 }
 
 export const db = drizzle(createPool(), { schema });
-
+export { createPool };
 export type Database = typeof db;

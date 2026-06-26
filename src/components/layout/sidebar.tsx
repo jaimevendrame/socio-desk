@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ const memberNav: NavItem[] = [
 const officeNav: NavItem[] = [
   { title: 'Dashboard', href: '/escritorio', icon: <LayoutDashboard className="h-5 w-5" /> },
   { title: 'Reservas', href: '/escritorio/reservas', icon: <Calendar className="h-5 w-5" /> },
+  { title: 'Fila de Espera', href: '/escritorio/reservas/fila', icon: <Clock className="h-5 w-5" /> },
   { title: 'Associados', href: '/escritorio/associados', icon: <Users className="h-5 w-5" /> },
   { title: 'Espacos', href: '/escritorio/espacos', icon: <Building className="h-5 w-5" /> },
   { title: 'Financeiro', href: '/escritorio/financeiro', icon: <CreditCard className="h-5 w-5" /> },

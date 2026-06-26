@@ -225,6 +225,124 @@ export async function sendReservationCancellation(params: {
 }
 
 /**
+ * Envia e-mail通知 de fila de espera — vaga disponível
+ */
+export async function sendWaitlistNotification(params: {
+  memberEmail: string;
+  memberName: string;
+  spaceName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  expiresInMinutes?: number;
+}): Promise<boolean> {
+  const { memberEmail, memberName, spaceName, date, startTime, endTime, expiresInMinutes = 30 } = params;
+
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.warn('[EMAIL] Brevo API key not configured');
+    return false;
+  }
+
+  const formattedDate = format(parseISO(date), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR });
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #16a34a; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .label { color: #666; font-size: 14px; }
+        .value { font-weight: bold; color: #333; }
+        .urgent-box { background: #FEF3C7; border: 2px solid #F59E0B; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; }
+        .urgent-time { font-size: 36px; font-weight: bold; color: #D97706; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔔 Vaga Disponível!</h1>
+        </div>
+        <div class="content">
+          <p>Olá, <strong>${memberName}</strong>!</p>
+          <p>Boas notícias! Uma vaga acabou de ser liberada no horário que você esperava.</p>
+
+          <div class="info-box">
+            <div class="info-row">
+              <span class="label">📅 Data</span>
+              <span class="value">${formattedDate}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">🕐 Horário</span>
+              <span class="value">${startTime} às ${endTime}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">📍 Espaço</span>
+              <span class="value">${spaceName}</span>
+            </div>
+          </div>
+
+          <div class="urgent-box">
+            <p style="font-size: 16px; color: #92400E; margin-bottom: 10px;">
+              ⏰ Esta vaga expira em:
+            </p>
+            <div class="urgent-time">${expiresInMinutes} minutos</div>
+            <p style="font-size: 14px; color: #92400E; margin-top: 10px;">
+              Corra para confirmar sua reserva pelo portal!
+            </p>
+          </div>
+
+          <p>Acesse seu painel de reservas para confirmar antes que expire.</p>
+        </div>
+        <div class="footer">
+          <p>Este é um e-mail automático do Socio Desk.</p>
+          <p>Você está recebendo esta mensagem porque entrou na fila de espera.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': apiKey,
+      },
+      body: JSON.stringify({
+        sender: {
+          name: 'Socio Desk',
+          email: process.env.EMAIL_FROM || 'noreply@sociodesk.com.br',
+        },
+        to: [{ email: memberEmail, name: memberName }],
+        subject: `🔔 Vaga disponível - ${spaceName} (${formattedDate})`,
+        htmlContent,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[EMAIL] Failed to send waitlist notification:', error);
+      return false;
+    }
+
+    console.log('[EMAIL] Waitlist notification sent to:', memberEmail);
+    return true;
+  } catch (error) {
+    console.error('[EMAIL] Error sending waitlist notification:', error);
+    return false;
+  }
+}
+
+/**
  * Envia lembrete de reserva (24h antes)
  */
 export async function sendReservationReminder(params: {

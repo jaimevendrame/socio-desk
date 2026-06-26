@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
 import { reservations, spaces, members } from '@/lib/db/schema';
 import { and, eq, gte, lte } from 'drizzle-orm';
-import { z } from 'zod';
 import { withTenantContext } from '@/lib/db/tenant-context';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { checkConflict } from '@/lib/reservations/conflicts';
-import { generateRecurringDates } from '@/lib/reservations/recurring';
-import { auditLog } from '@/lib/logging';
 import { getSessionWithTenant } from '@/lib/auth/session-with-tenant';
+import { createReservationAtomic } from '@/lib/reservations/create-atomic';
+import { z } from 'zod';
 
 const createReservationSchema = z.object({
   tenantId: z.string().uuid(),
@@ -45,7 +43,6 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const status = searchParams.get('status');
 
-    // Resolve tenantId from session (with DB lookup for tenant_id)
     const sessionData = await getSessionWithTenant(request.headers);
     const sessionTenantId = sessionData?.user.tenantId;
     const resolvedTenantId = tenantId || sessionTenantId;
@@ -59,25 +56,11 @@ export async function GET(request: NextRequest) {
     return withTenantContext(resolvedTenantId, userId, async () => {
       const conditions: any[] = [eq(reservations.tenantId, resolvedTenantId)];
 
-      if (spaceId) {
-        conditions.push(eq(reservations.spaceId, spaceId));
-      }
-
-      if (memberId) {
-        conditions.push(eq(reservations.memberId, memberId));
-      }
-
-      if (startDate) {
-        conditions.push(gte(reservations.date, startDate));
-      }
-
-      if (endDate) {
-        conditions.push(lte(reservations.date, endDate));
-      }
-
-      if (status) {
-        conditions.push(eq(reservations.status, status as 'pendente' | 'confirmada' | 'cancelada' | 'concluida'));
-      }
+      if (spaceId) conditions.push(eq(reservations.spaceId, spaceId));
+      if (memberId) conditions.push(eq(reservations.memberId, memberId));
+      if (startDate) conditions.push(gte(reservations.date, startDate));
+      if (endDate) conditions.push(lte(reservations.date, endDate));
+      if (status) conditions.push(eq(reservations.status, status as 'pendente' | 'confirmada' | 'cancelada' | 'concluida'));
 
       const result = await db
         .select({
@@ -107,7 +90,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/reservations - Criar reserva
+// POST /api/reservations - Criar reserva com row-level locking
 export async function POST(request: NextRequest) {
   try {
     const rl = checkRateLimit(request, 'write');
@@ -118,6 +101,7 @@ export async function POST(request: NextRequest) {
         { status: 429, headers: { 'Retry-After': String(retryAfter), 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)) } }
       );
     }
+
     const sessionData = await getSessionWithTenant(request.headers);
     const userId = sessionData?.user.id;
     const tenantId = sessionData?.user.tenantId;
@@ -129,82 +113,44 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = createReservationSchema.parse(body);
 
-    // If tenantId from body differs from session, reject (security)
     if (validated.tenantId !== tenantId) {
       return NextResponse.json({ error: 'tenantId mismatch' }, { status: 403 });
     }
 
-    return withTenantContext(tenantId, userId, async () => {
-      let dates = [validated.date];
-      if (validated.isRecurring && validated.recurringPattern && validated.recurringUntil) {
-        dates = generateRecurringDates(validated.date, validated.recurringPattern, validated.recurringUntil);
-      }
-
-      let amount = validated.amount;
-      const [space] = await db
-        .select()
-        .from(spaces)
-        .where(eq(spaces.id, validated.spaceId));
-
-      if (!amount && space?.hasCost && space?.costAmount) {
-        amount = parseFloat(space.costAmount.toString());
-      }
-
-      const createdReservations = [];
-
-      for (const reservationDate of dates) {
-        const conflictResult = await checkConflict({
-          spaceId: validated.spaceId,
-          date: reservationDate,
-          startTime: validated.startTime,
-          endTime: validated.endTime,
-          tenantId: validated.tenantId,
-        });
-
-        if (conflictResult.hasConflict) {
-          return NextResponse.json(
-            { error: 'Conflito de horário detectado', conflicts: conflictResult.conflictingReservations, failedDate: reservationDate },
-            { status: 409 }
-          );
-        }
-
-        const [newReservation] = await db
-          .insert(reservations)
-          .values({
-            tenantId: validated.tenantId,
-            spaceId: validated.spaceId,
-            memberId: validated.memberId,
-            teamMemberId: validated.teamMemberId,
-            date: reservationDate,
-            startTime: validated.startTime,
-            endTime: validated.endTime,
-            notes: validated.notes,
-            isRecurring: validated.isRecurring,
-            recurringPattern: validated.recurringPattern,
-            recurringUntil: validated.recurringUntil,
-            amount: amount?.toString(),
-            isPaid: validated.isPaid,
-            status: 'confirmada',
-          })
-          .returning();
-
-        createdReservations.push(newReservation);
-
-        await auditLog({
-          action: 'CREATE',
-          entity: 'reservation',
-          entityId: newReservation.id,
-          userId: validated.teamMemberId,
-          tenantId: validated.tenantId,
-          changes: { spaceId: validated.spaceId, memberId: validated.memberId, date: reservationDate, startTime: validated.startTime, endTime: validated.endTime },
-        });
-      }
-
-      return NextResponse.json(
-        { data: createdReservations, message: validated.isRecurring ? `${createdReservations.length} reservas criadas com sucesso` : 'Reserva criada com sucesso' },
-        { status: 201 }
-      );
+    // Usa transação atômica com row-level locking
+    const result = await createReservationAtomic({
+      tenantId: validated.tenantId,
+      spaceId: validated.spaceId,
+      memberId: validated.memberId,
+      teamMemberId: validated.teamMemberId,
+      date: validated.date,
+      startTime: validated.startTime,
+      endTime: validated.endTime,
+      notes: validated.notes,
+      isRecurring: validated.isRecurring,
+      recurringPattern: validated.recurringPattern,
+      recurringUntil: validated.recurringUntil,
+      amount: validated.amount,
+      isPaid: validated.isPaid,
     });
+
+    if (!result.success) {
+      if (result.error === 'CONFLICT') {
+        return NextResponse.json(
+          { error: result.message, conflicts: result.conflicts, failedDate: result.failedDate, canJoinWaitlist: true },
+          { status: 409 }
+        );
+      }
+      if (result.error === 'SPACE_NOT_FOUND') {
+        return NextResponse.json({ error: result.message }, { status: 404 });
+      }
+      return NextResponse.json({ error: result.message }, { status: 500 });
+    }
+
+    return NextResponse.json(
+      { data: result.reservations, message: result.message },
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.format() }, { status: 400 });

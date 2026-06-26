@@ -264,6 +264,34 @@ export const reservations = pgTable('reservations', {
 }));
 
 // ============================================
+// WAITLIST DE RESERVAS (depends on tenants, spaces, members)
+// ============================================
+
+export const reservationWaitlist = pgTable('reservation_waitlist', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  spaceId: uuid('space_id').references(() => spaces.id).notNull(),
+  memberId: uuid('member_id').references(() => members.id).notNull(),
+  date: date('date').notNull(),
+  startTime: time('start_time').notNull(),
+  endTime: time('end_time').notNull(),
+  position: integer('position').notNull(),
+  status: varchar('status', { length: 20 }).default('waiting').notNull(),
+  // notifiedAt: quando foi notificado que uma vaga abriu
+  notifiedAt: timestamp('notified_at'),
+  // expiresAt: quando expira a chance de confirmar (padrão: 30 min após notificação)
+  expiresAt: timestamp('expires_at'),
+  // linkedReservationId: se confirmou, qual reserva foi criada
+  linkedReservationId: uuid('linked_reservation_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  tenantIdx: index('idx_waitlist_tenant').on(table.tenantId),
+  spaceDateIdx: index('idx_waitlist_space_date').on(table.spaceId, table.date),
+  memberIdx: index('idx_waitlist_member').on(table.memberId),
+  // Garante posição única por espaço/data (usar trigger no DB para ordenar)
+}));
+
+// ============================================
 // PAYMENTS (depends on tenants, members, teamMembers)
 // ============================================
 
@@ -358,4 +386,10 @@ export const reservationsRelations = relations(reservations, ({ one }) => ({
   space: one(spaces, { fields: [reservations.spaceId], references: [spaces.id] }),
   member: one(members, { fields: [reservations.memberId], references: [members.id] }),
   createdBy: one(teamMembers, { fields: [reservations.teamMemberId], references: [teamMembers.id] }),
+}));
+
+export const reservationWaitlistRelations = relations(reservationWaitlist, ({ one }) => ({
+  tenant: one(tenants, { fields: [reservationWaitlist.tenantId], references: [tenants.id] }),
+  space: one(spaces, { fields: [reservationWaitlist.spaceId], references: [spaces.id] }),
+  member: one(members, { fields: [reservationWaitlist.memberId], references: [members.id] }),
 }));

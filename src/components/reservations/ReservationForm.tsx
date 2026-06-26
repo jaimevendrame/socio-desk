@@ -15,7 +15,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
-import { AlertTriangle, Plus } from 'lucide-react';
+import { AlertTriangle, Plus, Clock, Users } from 'lucide-react';
+
+interface ConflictInfo {
+  id: string;
+  memberName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+}
 
 interface ReservationFormProps {
   spaceId?: string;
@@ -27,7 +35,10 @@ export function ReservationForm({ spaceId, date, onSuccess }: ReservationFormPro
   const { tenantId } = useTenant();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
+  const [waitlistSuccess, setWaitlistSuccess] = useState<string | null>(null);
 
   // Estados do formulário
   const [selectedSpaceId, setSelectedSpaceId] = useState(spaceId || '');
@@ -83,10 +94,14 @@ export function ReservationForm({ spaceId, date, onSuccess }: ReservationFormPro
     setOpen(true);
     loadData();
     setError(null);
+    setConflicts([]);
+    setWaitlistSuccess(null);
   };
 
   const handleClose = () => {
     setOpen(false);
+    setConflicts([]);
+    setWaitlistSuccess(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -132,6 +147,14 @@ export function ReservationForm({ spaceId, date, onSuccess }: ReservationFormPro
 
       if (!response.ok) {
         const data = await response.json();
+
+        // Se há conflito, mostra opção de entrar na fila de espera
+        if (response.status === 409 && data.canJoinWaitlist) {
+          setConflicts(data.conflicts || []);
+          setError('Horário indisponível');
+          return;
+        }
+
         throw new Error(data.error || 'Falha ao criar reserva');
       }
 
@@ -144,10 +167,47 @@ export function ReservationForm({ spaceId, date, onSuccess }: ReservationFormPro
       setEndTime('10:00');
       setNotes('');
       setIsRecurring(false);
+      setConflicts([]);
+      setWaitlistSuccess(null);
     } catch (err: any) {
       setError(err.message || 'Erro ao criar reserva');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleJoinWaitlist = async () => {
+    if (!selectedSpaceId || !selectedDate || !selectedMemberId) return;
+
+    setWaitlistLoading(true);
+    setWaitlistSuccess(null);
+
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spaceId: selectedSpaceId,
+          memberId: selectedMemberId,
+          date: format(selectedDate, 'yyyy-MM-dd'),
+          startTime,
+          endTime,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao entrar na fila');
+      }
+
+      setWaitlistSuccess(data.message);
+      setConflicts([]);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao entrar na fila de espera');
+    } finally {
+      setWaitlistLoading(false);
     }
   };
 
@@ -173,6 +233,64 @@ export function ReservationForm({ spaceId, date, onSuccess }: ReservationFormPro
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                 <AlertTriangle className="h-4 w-4 inline mr-2" />
                 {error}
+              </div>
+            )}
+
+            {/* Sucesso na fila de espera */}
+            {waitlistSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm flex items-start gap-2">
+                <Clock className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Adicionado à fila de espera!</p>
+                  <p>{waitlistSuccess}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Info de conflitos e opção de waitlist */}
+            {conflicts.length > 0 && !waitlistSuccess && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-amber-800">Horário já reservado</p>
+                    <p className="text-sm text-amber-700 mt-1">
+                      Já existem reservas neste horário:
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {conflicts.map((conflict) => (
+                    <div
+                      key={conflict.id}
+                      className="flex items-center gap-2 text-sm text-amber-800 bg-white/60 rounded p-2"
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      <span className="font-medium">{conflict.memberName}</span>
+                      <span className="text-amber-600">
+                        {conflict.startTime} - {conflict.endTime}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-amber-200">
+                  <p className="text-sm text-amber-700">
+                    Deseja entrar na fila de espera? Avisamos quando liberar.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleJoinWaitlist}
+                    disabled={waitlistLoading}
+                    className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                  >
+                    <Clock className="h-3.5 w-3.5 mr-1.5" />
+                    {waitlistLoading ? 'Adicionando...' : 'Entrar na fila'}
+                  </Button>
+                </div>
               </div>
             )}
 
