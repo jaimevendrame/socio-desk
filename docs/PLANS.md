@@ -75,8 +75,8 @@ docker-compose.yml           # Postgres + MinIO
 
 ---
 
-### ⚠️ M3 - Backend Essentials
-**Status:** ~85% Completo — auth + RLS multi-tenant resolvidos, funcionalidades avançadas pendentes
+### ✅ M3 - Backend Essentials
+**Status:** Concluído em 01/07/2026
 
 **Entregues:**
 - [x] APIs REST implementadas (members, spaces, reservations, payments)
@@ -92,13 +92,22 @@ docker-compose.yml           # Postgres + MinIO
 - [x] Rate limiting em todas as rotas
 - [x] getSessionWithTenant() — tenantId em todas as APIs
 - [x] withTenantContext() — isolamento por request
+- [x] **Importação CSV de membros** (validação CPF, duplicados, até 500 registros)
+- [x] **Upload de fotos (S3/MinIO)** (drag-drop, JPEG/PNG/WebP/GIF, 5MB)
+- [x] **CRUD Dependentes completo** (GET/POST/PATCH/DELETE /api/dependents)
+- [x] **Busca avançada** (filtros por CPF, matrícula, local de trabalho)
+- [x] **API de workplaces** (GET /api/workplaces)
 
-**Pendente:**
-- [ ] CRUD Spaces completo (PATCH/DELETE APIs)
-- [ ] Importação CSV/Excel de membros
-- [ ] Upload de fotos (S3/MinIO)
-- [ ] CRUD Dependentes completo
-- [ ] Busca avançada por CPF, matrícula, local de trabalho
+**Arquivos新增:**
+```
+src/app/api/members/import/route.ts    # Importação CSV
+src/app/api/dependents/route.ts        # CRUD dependentes
+src/app/api/dependents/[id]/route.ts   # CRUD dependentes [id]
+src/app/api/upload/route.ts            # Upload S3
+src/app/api/workplaces/route.ts        # Listar workplaces
+src/lib/s3/client.ts                 # Cliente S3/MinIO
+src/components/office/members/         # Componentes de membros
+```
 
 ---
 
