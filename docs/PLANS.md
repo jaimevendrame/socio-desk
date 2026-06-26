@@ -1,5 +1,19 @@
 # Socio Desk - Plano de Desenvolvimento
 
+> ⚠️ **NOTA IMPORTANTE — Status Real do Projeto**
+>
+> As milestones marcadas como ✅ estão com a **UI/core funcional**, mas possuem **funcionalidades pendentes** listadas em cada seção. O projeto está em ~60% de completion do MVP.
+>
+> **Gaps CRÍTICOS que impedem deploy em produção:**
+> 1. Auth middleware com código commented (TODO)
+> 2. Tenant ID hardcoded (`DEMO_TENANT_ID`)
+> 3. getUserRole com query quebrada
+> 4. RLS não implementado
+>
+> **Ver docs/notepad.md para análise detalhada de gaps e planejamento de correções.**
+
+---
+
 ## Visão Geral
 
 Socio Desk é um SaaS multi-tenant para gestão de reservas de associações recreativas. Desenvolvido com Next.js 16, TypeScript, Drizzle ORM e Better Auth.
@@ -61,10 +75,10 @@ docker-compose.yml           # Postgres + MinIO
 
 ---
 
-### 🔄 M3 - Backend Essentials
-**Status:** Concluido
+### ⚠️ M3 - Backend Essentials
+**Status:** ~70% Completo — funcionalidade core existe, funcionalidades avançadas pendentes
 
-**Entregas:**
+**Entregues:**
 - [x] APIs REST implementadas (members, spaces, reservations, payments)
 - [x] Validação Zod
 - [x] Detecção de conflitos de horário
@@ -75,12 +89,19 @@ docker-compose.yml           # Postgres + MinIO
 - [x] Seed executado com dados de teste
 - [x] **Autenticação básica implementada**
 
+**Pendente:**
+- [ ] CRUD Spaces completo (PATCH/DELETE APIs)
+- [ ] Importação CSV/Excel de membros
+- [ ] Upload de fotos (S3/MinIO)
+- [ ] CRUD Dependentes completo
+- [ ] Busca avançada por CPF, matrícula, local de trabalho
+
 ---
 
-### ✅ M4 - Reservations Core
-**Status:** Concluído em 24/06/2026
+### ⚠️ M4 - Reservations Core
+**Status:** ~60% Completo — core implementado, race condition e waitlist pendentes
 
-**Entregas:**
+**Entregues:**
 - [x] `/escritorio/reservas` - Calendário interativo (dia/semana/mês)
 - [x] `/escritorio/reservas` - Lista de reservas do dia com refresh
 - [x] `/api/reservations` - CRUD completo com validação Zod
@@ -93,15 +114,17 @@ docker-compose.yml           # Postgres + MinIO
 - [x] Dashboard do escritório conectado ao backend
 - [x] Hooks reutilizáveis (useReservations, useConflicts, useAvailability)
 
-**Pendente (Fase 2):**
+**Pendente:**
+- [ ] Row-level locking (prevenir double-booking em race conditions)
+- [ ] Waitlist de reservas (avisar quando vaga liberar)
 - [ ] Notificações (email/whatsapp) via Brevo
 
 ---
 
-### ✅ M5 - Financeiro
-**Status:** Concluído em 26/06/2026
+### ⚠️ M5 - Financeiro
+**Status:** ~50% Completo — APIs e components existem, cron jobs não estão wired, relatórios limitados
 
-**Entregas:**
+**Entregues:**
 - [x] `/escritorio/financeiro` - Dashboard financeiro com stats (recebido, pendente, inadimplentes)
 - [x] `/escritorio/financeiro` - Lista de pagamentos com filtros por status
 - [x] `/api/payments` - CRUD completo com estatísticas e paginação
@@ -118,20 +141,37 @@ docker-compose.yml           # Postgres + MinIO
 - [x] Desbloqueio automático ao quitar débitos
 
 **Pendente:**
-- [ ] Dashboard com gráficos (Chart.js/Recharts)
+- [ ] Cron jobs wired (precisa de scheduler — vercel-cron ou similar)
+- [ ] Dashboard com gráficos Recharts integrados
+- [ ] Exportação PDF de relatórios
 - [ ] Integração PIX/pagamentos online (Fase 2)
 
 ---
 
-### 📋 M6 - Polish & Deploy
-**Status:** Pendente
+### 🚨 M6 - Polish & Deploy
+**Status:** Não iniciado — CRÍTICO: gaps de segurança impedem deploy
 
-**Entregas planejadas:**
+**⚠️ ANTES DESTE MILESTONE — Corrigir gaps de segurança:**
+- [ ] Auth middleware completo (src/middleware.ts tem TODO commentado)
+- [ ] TenantContext dinâmico (remove DEMO_TENANT_ID hardcoded)
+- [ ] getUserRole corrigido (query quebrada em permissions.ts)
+- [ ] RLS preparado ou documentar isolamento por código
+
+**Entregues planejadas:**
 - [ ] Testes E2E (Playwright)
-- [ ] Documentação completa
 - [ ] CI/CD (GitHub Actions)
-- [ ] Deploy (Vercel/Railway)
+- [ ] Deploy (Coolify/Vercel)
 - [ ] Monitoring (Sentry)
+- [ ] Dockerfile production-ready
+- [ ] Healthcheck endpoint (/api/health)
+
+**⚠️ Funcionalidades MVP ainda pendentes:**
+- [ ] CRUD Spaces completo
+- [ ] Importação CSV de membros
+- [ ] Upload de fotos (S3/MinIO)
+- [ ] Pages admin/master (equipe, config, tenants, planos)
+- [ ] Waitlist de reservas
+- [ ] Ciclo de dependentes CRUD
 
 ---
 

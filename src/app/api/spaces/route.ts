@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { spaces } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
+import { withTenantContext } from '@/lib/db/tenant-context';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { getSessionWithTenant } from '@/lib/auth/session-with-tenant';
 
 const createSpaceSchema = z.object({
   tenantId: z.string().uuid(),
@@ -24,32 +27,49 @@ const createSpaceSchema = z.object({
 // GET /api/spaces - Listar espaços
 export async function GET(request: NextRequest) {
   try {
+    const rl = checkRateLimit(request, 'api');
+    if (!rl.allowed) {
+      const retryAfter = Math.ceil((rl.retryAfterMs ?? 0) / 1000);
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter), 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)) } }
+      );
+    }
     const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get('tenantId');
+    let tenantId = searchParams.get('tenantId');
     const category = searchParams.get('category');
     const active = searchParams.get('active');
 
-    if (!tenantId) {
+    // Resolve tenantId from session (with DB lookup for tenant_id)
+    const sessionData = await getSessionWithTenant(request.headers);
+    const sessionTenantId = sessionData?.user.tenantId;
+    const resolvedTenantId = tenantId || sessionTenantId;
+
+    if (!resolvedTenantId) {
       return NextResponse.json({ error: 'tenantId é obrigatório' }, { status: 400 });
     }
 
-    const conditions = [eq(spaces.tenantId, tenantId)];
+    const userId = sessionData?.user.id;
 
-    if (category) {
-      conditions.push(eq(spaces.category, category as 'esportivo' | 'social' | 'equipamento'));
-    }
+    return withTenantContext(resolvedTenantId, userId, async () => {
+      const conditions = [eq(spaces.tenantId, resolvedTenantId)];
 
-    if (active !== null) {
-      conditions.push(eq(spaces.isActive, active === 'true'));
-    }
+      if (category) {
+        conditions.push(eq(spaces.category, category as 'esportivo' | 'social' | 'equipamento'));
+      }
 
-    const result = await db
-      .select()
-      .from(spaces)
-      .where(and(...conditions))
-      .orderBy(desc(spaces.createdAt));
+      if (active !== null) {
+        conditions.push(eq(spaces.isActive, active === 'true'));
+      }
 
-    return NextResponse.json({ data: result });
+      const result = await db
+        .select()
+        .from(spaces)
+        .where(and(...conditions))
+        .orderBy(desc(spaces.createdAt));
+
+      return NextResponse.json({ data: result });
+    });
   } catch (error) {
     console.error('Error fetching spaces:', error);
     return NextResponse.json({ error: 'Erro ao buscar espaços' }, { status: 500 });
@@ -59,30 +79,37 @@ export async function GET(request: NextRequest) {
 // POST /api/spaces - Criar espaço
 export async function POST(request: NextRequest) {
   try {
+    const rl = checkRateLimit(request, 'write');
+    if (!rl.allowed) {
+      const retryAfter = Math.ceil((rl.retryAfterMs ?? 0) / 1000);
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter), 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)) } }
+      );
+    }
+    const sessionData = await getSessionWithTenant(request.headers);
+    const userId = sessionData?.user.id;
+    const tenantId = sessionData?.user.tenantId;
+
+    if (!tenantId) {
+      return NextResponse.json({ error: 'tenantId não encontrado na sessão' }, { status: 400 });
+    }
+
     const body = await request.json();
     const validated = createSpaceSchema.parse(body);
 
-    const [newSpace] = await db
-      .insert(spaces)
-      .values({
-        tenantId: validated.tenantId,
-        name: validated.name,
-        description: validated.description,
-        category: validated.category,
-        bufferMinutes: validated.bufferMinutes,
-        minReservationMinutes: validated.minReservationMinutes,
-        maxReservationMinutes: validated.maxReservationMinutes,
-        maxAdvanceDays: validated.maxAdvanceDays,
-        maxReservationsPerDay: validated.maxReservationsPerDay,
-        openTime: validated.openTime,
-        closeTime: validated.closeTime,
-        hasCost: validated.hasCost,
-        costAmount: validated.costAmount?.toString(),
-        isActive: validated.isActive,
-      })
-      .returning();
+    return withTenantContext(tenantId, userId, async () => {
+      const [newSpace] = await db
+        .insert(spaces)
+        .values({
+          ...validated,
+          tenantId,
+          costAmount: validated.costAmount?.toString(),
+        })
+        .returning();
 
-    return NextResponse.json(newSpace, { status: 201 });
+      return NextResponse.json(newSpace, { status: 201 });
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.format() }, { status: 400 });

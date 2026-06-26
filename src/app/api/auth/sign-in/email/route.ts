@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { db } from '@/lib/db/client';
+import { sql } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   let body: { email?: string; password?: string };
@@ -47,6 +49,34 @@ export async function POST(request: NextRequest) {
 
     const data = JSON.parse(responseBody);
 
+    // Get tenantId from teamMembers (raw SQL bypasses RLS)
+    let tenantId: string | undefined;
+    let sessionToken: string | undefined;
+    try {
+      const result = await db.execute(
+        sql`SELECT tm.tenant_id, s.token
+            FROM team_members tm
+            JOIN sessions s ON s.user_id = tm.user_id
+            WHERE tm.user_id = ${data.user?.id}
+              AND s.expires_at > NOW()
+            ORDER BY s.created_at DESC
+            LIMIT 1`,
+      );
+      if (result.rows?.[0]) {
+        tenantId = result.rows[0].tenant_id as string;
+        sessionToken = result.rows[0].token as string;
+      }
+    } catch { /* continue */ }
+
+    // Persist tenantId in sessions table (bypasses RLS on sessions)
+    if (tenantId && sessionToken) {
+      try {
+        await db.execute(
+          sql`UPDATE sessions SET tenant_id = ${tenantId}::uuid WHERE token = ${sessionToken}`,
+        );
+      } catch { /* non-critical */ }
+    }
+
     // Forward set-cookie headers
     const setCookieHeaders: string[] = [];
     response.headers.forEach((value, key) => {
@@ -54,20 +84,6 @@ export async function POST(request: NextRequest) {
         setCookieHeaders.push(value.split(',')[0].trim());
       }
     });
-
-    // Get tenantId from session
-    let tenantId: string | undefined;
-    try {
-      const sessionHeaders = new Headers();
-      const sessionCookie = setCookieHeaders[0];
-      if (sessionCookie) {
-        sessionHeaders.set('cookie', sessionCookie.split(';')[0]);
-      }
-      const sessionResponse = await auth.api.getSession({ headers: sessionHeaders });
-      if (sessionResponse?.user) {
-        tenantId = (sessionResponse.user as any).tenantId;
-      }
-    } catch { /* continue */ }
 
     const jsonResponse = new NextResponse(JSON.stringify({
       user: {
@@ -80,6 +96,7 @@ export async function POST(request: NextRequest) {
       session: {
         id: data.session?.id || data.token,
         expiresAt: data.session?.expiresAt,
+        tenantId,
       },
     }), {
       status: 200,

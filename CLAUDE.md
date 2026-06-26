@@ -5,7 +5,7 @@
 **Versão:** MVP em desenvolvimento
 **Stack:** Next.js 16 + Drizzle ORM + Better Auth + PostgreSQL + Coolify
 **Data:** Junho/2026
-**Status:** M5 Financeiro completo ✅
+**Status:** M5 Financeiro completo ✅ | M7 Design System v2 completo ✅
 
 ---
 
@@ -177,3 +177,57 @@ npm run dev
 git commit -m "feat(members): adicionar busca por CPF"
 git commit -m "fix(reservations): corrigir conflito"
 ```
+
+---
+
+## 11. Design System v2
+
+**Direção:** Professional SaaS (Linear/Vercel inspired) — sofisticado, minimalista
+
+### Paleta de Cores
+
+| Nome | Hex | Uso |
+|------|-----|-----|
+| Background | `#FAFAFA` | Fundo off-white |
+| Foreground | `#18181B` | Texto principal (zinc-900) |
+| Brand Primary | `#16a34a` | CTAs, destaques (emerald-600) |
+| Brand Light | `#22c55e` | Hovers, accents (emerald-500) |
+| Muted | `#71717A` | Texto secundário (zinc-500) |
+| Border | `rgba(0,0,0,0.06)` | Bordas sutis |
+| Error | `#dc2626` | Status erro |
+| Warning | `#ca8a04` | Status alerta |
+
+### Tipografia
+
+| Role | Font | Weight |
+|------|------|--------|
+| UI/Body | Inter | 400-500 |
+| Headings | Inter | 600 (semibold) |
+| Labels | Inter | 500 uppercase |
+
+### Animações (Framer Motion)
+
+```tsx
+import { FadeIn, StaggerContainer, fadeVariants } from '@/components/animations/fade-in';
+```
+
+### Componentes Redesignados
+
+| Página | Status | Arquivo |
+|--------|--------|---------|
+| Login | ✅ Feito | `src/app/(auth)/login/page.tsx` |
+| Dashboard Associado | ✅ Feito | `src/app/(dashboard)/dashboard/page.tsx` |
+| Office Dashboard | ✅ Feito | `src/app/(office)/escritorio/page.tsx` |
+| Sidebar | ✅ Feito | `src/components/layout/sidebar.tsx` |
+| Header | ✅ Feito | `src/components/layout/header.tsx` |
+| Financeiro | ✅ Feito | `src/app/(office)/escritorio/financeiro/page.tsx` |
+| Dark mode | ✅ Feito | `components/theme/theme-toggle.tsx` |
+
+### Variáveis CSS
+
+Ver `src/app/globals.css` para tokens completos:
+- `--background`, `--foreground` — Cores base
+- `--color-brand-*` — Paleta emerald
+- `--shadow-*` — Sombras com tint de marca
+- `--space-*` — Espaçamento (grid 4px)
+- `--text-*` — Escala tipográfica

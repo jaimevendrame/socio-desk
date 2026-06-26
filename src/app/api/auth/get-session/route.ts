@@ -1,14 +1,9 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { getSessionWithTenant } from '@/lib/auth/session-with-tenant';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Obter cookies do header de requisição
-    const requestHeaders = new Headers();
-
-    const session = await auth.api.getSession({
-      headers: requestHeaders,
-    });
+    const session = await getSessionWithTenant(request.headers);
 
     if (!session) {
       return NextResponse.json({ user: null, session: null });
@@ -20,11 +15,12 @@ export async function GET() {
         name: session.user.name,
         email: session.user.email,
         image: session.user.image,
-        tenantId: (session.user as any).tenantId,
+        tenantId: session.user.tenantId,
       },
       session: {
         id: session.session.id,
         expiresAt: session.session.expiresAt.toISOString(),
+        tenantId: session.session.tenantId,
       },
     });
   } catch (error) {

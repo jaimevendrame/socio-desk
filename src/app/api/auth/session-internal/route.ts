@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getSessionWithTenant } from '@/lib/auth/session-with-tenant';
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieHeader = request.headers.get('cookie') || '';
-    const response = await auth.api.getSession({
-      headers: { cookie: cookieHeader },
-    });
+    const session = await getSessionWithTenant(request.headers);
+
+    if (!session) {
+      return NextResponse.json({ authenticated: false }, { status: 200 });
+    }
 
     return NextResponse.json({
-      authenticated: !!response,
-      userId: response?.user?.id ?? null,
-      email: response?.user?.email ?? null,
-      sessionId: response?.session?.id ?? null,
+      authenticated: true,
+      userId: session.user.id,
+      email: session.user.email,
+      sessionId: session.session.id,
+      tenantId: session.user.tenantId,
     });
   } catch (error) {
     return NextResponse.json({ authenticated: false }, { status: 500 });

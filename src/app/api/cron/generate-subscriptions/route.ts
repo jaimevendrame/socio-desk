@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { tenants } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { generateMonthlySubscriptions } from '@/lib/finance/subscription-generator';
+import { withTenantContext } from '@/lib/db/tenant-context';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes max
@@ -18,6 +20,14 @@ export const maxDuration = 300; // 5 minutes max
  */
 export async function POST(request: NextRequest) {
   try {
+    const rl = checkRateLimit(request, 'cron');
+    if (!rl.allowed) {
+      const retryAfter = Math.ceil((rl.retryAfterMs ?? 0) / 1000);
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter), 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)) } }
+      );
+    }
     // Verificar authorization header
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
@@ -57,10 +67,9 @@ export async function POST(request: NextRequest) {
     // Processar cada tenant
     for (const tenant of activeTenants) {
       try {
-        const result = await generateMonthlySubscriptions({
-          tenantId: tenant.id,
-          month: new Date(), // Gera para o próximo mês
-        });
+        const result = await withTenantContext(tenant.id, undefined, async () =>
+          generateMonthlySubscriptions({ tenantId: tenant.id, month: new Date() })
+        );
 
         results.tenants.push({
           tenantId: tenant.id,

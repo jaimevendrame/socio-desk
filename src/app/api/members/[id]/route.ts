@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { members, dependents, reservations, payments } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
+import { withTenantContext } from '@/lib/db/tenant-context';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { getSessionWithTenant } from '@/lib/auth/session-with-tenant';
 
 const updateMemberSchema = z.object({
   name: z.string().min(1).max(255).optional(),
@@ -32,44 +35,58 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const rl = checkRateLimit(request, 'api');
+    if (!rl.allowed) {
+      const retryAfter = Math.ceil((rl.retryAfterMs ?? 0) / 1000);
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter), 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)) } }
+      );
+    }
     const { id } = await params;
+    const sessionData = await getSessionWithTenant(request.headers);
+    const userId = sessionData?.user.id;
+    const tenantId = sessionData?.user.tenantId;
 
-    const [member] = await db
-      .select()
-      .from(members)
-      .where(eq(members.id, id));
-
-    if (!member) {
-      return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
+    if (!tenantId) {
+      return NextResponse.json({ error: 'tenantId não encontrado na sessão' }, { status: 401 });
     }
 
-    // Buscar dependentes
-    const memberDependents = await db
-      .select()
-      .from(dependents)
-      .where(eq(dependents.memberId, id));
+    return withTenantContext(tenantId, userId, async () => {
+      const [member] = await db
+        .select()
+        .from(members)
+        .where(eq(members.id, id));
 
-    // Buscar reservas
-    const memberReservations = await db
-      .select()
-      .from(reservations)
-      .where(eq(reservations.memberId, id))
-      .orderBy(desc(reservations.date))
-      .limit(10);
+      if (!member) {
+        return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
+      }
 
-    // Buscar pagamentos
-    const memberPayments = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.memberId, id))
-      .orderBy(desc(payments.dueDate))
-      .limit(10);
+      const memberDependents = await db
+        .select()
+        .from(dependents)
+        .where(eq(dependents.memberId, id));
 
-    return NextResponse.json({
-      ...member,
-      dependents: memberDependents,
-      reservations: memberReservations,
-      payments: memberPayments,
+      const memberReservations = await db
+        .select()
+        .from(reservations)
+        .where(eq(reservations.memberId, id))
+        .orderBy(desc(reservations.date))
+        .limit(10);
+
+      const memberPayments = await db
+        .select()
+        .from(payments)
+        .where(eq(payments.memberId, id))
+        .orderBy(desc(payments.dueDate))
+        .limit(10);
+
+      return NextResponse.json({
+        ...member,
+        dependents: memberDependents,
+        reservations: memberReservations,
+        payments: memberPayments,
+      });
     });
   } catch (error) {
     console.error('Error fetching member:', error);
@@ -83,24 +100,42 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const rl = checkRateLimit(request, 'api');
+    if (!rl.allowed) {
+      const retryAfter = Math.ceil((rl.retryAfterMs ?? 0) / 1000);
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter), 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)) } }
+      );
+    }
     const { id } = await params;
+    const sessionData = await getSessionWithTenant(request.headers);
+    const userId = sessionData?.user.id;
+    const tenantId = sessionData?.user.tenantId;
+
+    if (!tenantId) {
+      return NextResponse.json({ error: 'tenantId não encontrado na sessão' }, { status: 401 });
+    }
+
     const body = await request.json();
     const validated = updateMemberSchema.parse(body);
 
-    const [updatedMember] = await db
-      .update(members)
-      .set({
-        ...validated,
-        updatedAt: new Date(),
-      })
-      .where(eq(members.id, id))
-      .returning();
+    return withTenantContext(tenantId, userId, async () => {
+      const [updatedMember] = await db
+        .update(members)
+        .set({
+          ...validated,
+          updatedAt: new Date(),
+        })
+        .where(eq(members.id, id))
+        .returning();
 
-    if (!updatedMember) {
-      return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
-    }
+      if (!updatedMember) {
+        return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
+      }
 
-    return NextResponse.json(updatedMember);
+      return NextResponse.json(updatedMember);
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.format() }, { status: 400 });
@@ -116,18 +151,35 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const rl = checkRateLimit(request, 'api');
+    if (!rl.allowed) {
+      const retryAfter = Math.ceil((rl.retryAfterMs ?? 0) / 1000);
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter), 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)) } }
+      );
+    }
     const { id } = await params;
+    const sessionData = await getSessionWithTenant(request.headers);
+    const userId = sessionData?.user.id;
+    const tenantId = sessionData?.user.tenantId;
 
-    const [deletedMember] = await db
-      .delete(members)
-      .where(eq(members.id, id))
-      .returning();
-
-    if (!deletedMember) {
-      return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
+    if (!tenantId) {
+      return NextResponse.json({ error: 'tenantId não encontrado na sessão' }, { status: 401 });
     }
 
-    return NextResponse.json({ success: true, deleted: deletedMember });
+    return withTenantContext(tenantId, userId, async () => {
+      const [deletedMember] = await db
+        .delete(members)
+        .where(eq(members.id, id))
+        .returning();
+
+      if (!deletedMember) {
+        return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true, deleted: deletedMember });
+    });
   } catch (error) {
     console.error('Error deleting member:', error);
     return NextResponse.json({ error: 'Erro ao excluir membro' }, { status: 500 });

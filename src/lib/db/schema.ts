@@ -52,6 +52,7 @@ export const users = pgTable('users', {
 export const sessions = pgTable('sessions', {
   id: varchar('id', { length: 255 }).primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  tenantId: uuid('tenant_id'),
   expiresAt: timestamp('expires_at').notNull(),
   token: varchar('token', { length: 255 }).unique().notNull(),
   ipAddress: varchar('ip_address', { length: 100 }),

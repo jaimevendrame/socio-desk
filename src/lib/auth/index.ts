@@ -18,23 +18,10 @@ export const auth = betterAuth({
     expiresIn: 30 * 24 * 60 * 60, // 30 days
     updateAge: 24 * 60 * 60, // 24 hours
   },
-  callbacks: {
-    async session({ session, user }: { session: any; user: any }) {
-      if (user && session?.user) {
-        try {
-          const member = await db.query.teamMembers?.findFirst?.({
-            where: (tm, { eq }) => eq(tm.userId, user.id),
-          });
-          if (member) {
-            session.user.tenantId = member.tenantId;
-          }
-        } catch {
-          // Silently fail — layout.tsx tambem busca tenant
-        }
-      }
-      return session;
-    },
-  },
+  // Note: session callback is NOT used for tenantId hydration here because Better Auth
+  // does not execute it during getSession(). Instead, getSessionWithTenant() handles
+  // tenantId enrichment via direct DB query (sessions table has no RLS).
+  // tenantId is persisted to sessions table during sign-in via sign-in/email/route.ts.
   advanced: {
     useSecureCookies: process.env.NODE_ENV === 'production',
     trustedOrigins: ['http://localhost:3000', 'http://localhost:3001'],
