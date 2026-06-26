@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Filter, MoreHorizontal, Mail, Phone, Building, BadgeCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
+import { ImportMembersDialog } from '@/components/office/members/import-dialog';
 
 interface Member {
   id: string;
@@ -58,6 +59,11 @@ export default function MembersListPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleImportComplete = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     async function fetchMembers() {
@@ -81,7 +87,7 @@ export default function MembersListPage() {
       }
     }
     fetchMembers();
-  }, [tenantId, search, statusFilter, typeFilter]);
+  }, [tenantId, search, statusFilter, typeFilter, refreshKey]);
 
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
@@ -108,12 +114,15 @@ export default function MembersListPage() {
           <h1 className="text-2xl font-bold">Associados</h1>
           <p className="text-muted-foreground">Gerencie os membros da associação</p>
         </div>
-        <Link href="/escritorio/associados/novo">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Associado
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <ImportMembersDialog onImportComplete={handleImportComplete} />
+          <Link href="/escritorio/associados/novo">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Associado
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
