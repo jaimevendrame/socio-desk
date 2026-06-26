@@ -1,23 +1,43 @@
 # SPEC — Socio Desk: Ambiente de Desenvolvimento
 
 **Documento:** Setup completo de ambiente local e deploy
-**Versão:** 1.0 | **Data:** Junho/2026
-**Stack:** Next.js + Drizzle ORM + Better Auth + Postgres + Coolify
+**⚠️ AVISO:** Este documento está parcialmente desatualizado. Versões reais em package.json.
+**Versão:** 1.2 | **Data:** Junho/2026
+**Stack:** Next.js 16 + Drizzle ORM + Better Auth + PostgreSQL + Coolify
+
+> ⚠️ **NOTA DE DESATUALIZAÇÃO (Junho/2026)**
+>
+> Este documento contém versões e estruturas de pastas que foram atualizadas no projeto real.
+>
+> **Correções rápidas:**
+> - Next.js: 14+ → **16.2.9**
+> - React: 18.x → **19.2.4**
+> - Tailwind: v3 → **v4 (CSS-first)**
+> - Verificar versões reais em `package.json`
+>
+> **Ver docs/notepad.md para análise completa de gaps.**
 
 ---
 
 ## 1. Visão Geral da Stack
 
-### Stack Definitive
+### Stack Implementada (Atualizado)
+
+| Camada | Tecnologia | Status |
+|--------|------------|--------|
+| **Frontend + Backend** | Next.js 16.2.9 (App Router) | ✅ |
+| **ORM** | Drizzle ORM 0.45.2 | ✅ |
+| **Auth** | Better Auth 1.6.20 | ✅ |
+| **Database** | PostgreSQL 16 | ✅ |
+| **Storage** | MinIO (local) | ⚠️ Não implementado |
+| **E-mail** | Brevo (Sendinblue) | ⚠️ Templates existem, não wired |
+| **Deploy** | Coolify | ⚠️ docker-compose.production.yml não existe |
+
+### Stack Definitive (Original - desatualizado)
 
 | Camada | Tecnologia | Alternativa Prod |
 |--------|------------|-----------------|
 | **Frontend + Backend** | Next.js 14+ (App Router) | Vercel ou Coolify |
-| **ORM** | Drizzle ORM | Igual em todos ambientes |
-| **Auth** | Better Auth | Igual em todos ambientes |
-| **Database** | PostgreSQL 16 | Postgres 16 self-hosted (Coolify) |
-| **Storage** | MinIO (local) | Backblaze B2 ou S3-compatible |
-| **Deploy** | Coolify | Coolify na VPS |
 | **Runtime** | Bun ou Node.js | Igual em todos ambientes |
 
 ### Por que não o stack original

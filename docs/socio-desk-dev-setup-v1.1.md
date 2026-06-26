@@ -1,12 +1,24 @@
-# SPEC — Socio Desk: Ambiente de Desenvolvimento
+# ⚠️ ARQUIVO DESATUALIZADO — DUPLICADO
 
-**Documento:** Setup completo de ambiente local e deploy
-**Versão:** 1.1 | **Data:** Junho/2026
-**Stack:** Next.js + Drizzle ORM + Better Auth + PostgreSQL + Coolify + Brevo + Recharts
+**⚠️ ESTE ARQUIVO ESTÁ DUPLICADO E DESATUALIZADO.**
+
+O conteúdo correto e atualizado está em: **`docs/socio-desk-dev-setup.md`**
+
+Por favor, use `docs/socio-desk-dev-setup.md` como referência.
 
 ---
 
-## 1. Visão Geral da Stack
+## Resumo das Diferenças
+
+| Item | dev-setup-v1.1.md | dev-setup.md (atual) |
+|------|-------------------|----------------------|
+| Next.js | 14+ | 16.2.9 |
+| React | 18.x | 19.2.4 |
+| Status | Desatualizado | Atualizado |
+
+---
+
+*Este arquivo será removido em uma futura limpeza de documentação.*
 
 ### Stack Definitive
 
