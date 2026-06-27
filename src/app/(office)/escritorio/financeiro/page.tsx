@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, AlertTriangle, Loader2, BarChart3, CheckCircle } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, AlertTriangle, Loader2, BarChart3, CheckCircle, PieChart as PieChartIcon, TrendingDown as TrendDownIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,11 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { FadeIn, StaggerContainer, fadeVariants, MotionCard } from '@/components/animations/fade-in';
@@ -107,7 +112,49 @@ export default function FinancialPage() {
     setStats(newStats);
   }, [payments]);
 
-  const chartData = useMemo(() => {
+  const pieChartData = useMemo(() => {
+    const statusData = [
+      { name: 'Pagos', value: payments.filter(p => p.status === 'paid').length, color: '#16a34a' },
+      { name: 'Pendentes', value: payments.filter(p => p.status === 'pending').length, color: '#ca8a04' },
+      { name: 'Atrasados', value: payments.filter(p => p.status === 'overdue').length, color: '#dc2626' },
+      { name: 'Cancelados', value: payments.filter(p => p.status === 'cancelled').length, color: '#71717a' },
+    ];
+    return statusData.filter(item => item.value > 0);
+  }, [payments]);
+
+  const lineChartData = useMemo(() => {
+    // Tendência de inadimplência nos últimos 6 meses
+    const monthlyTrend: Record<string, { month: string; inadimplentes: number; total: number }> = {};
+
+    payments.forEach((payment) => {
+      const date = new Date(payment.dueDate);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = date.toLocaleDateString('pt-BR', { month: 'short' });
+
+      if (!monthlyTrend[monthKey]) {
+        monthlyTrend[monthKey] = {
+          month: monthLabel,
+          inadimplentes: 0,
+          total: 0,
+        };
+      }
+
+      monthlyTrend[monthKey].total += parseFloat(payment.amount || '0');
+      if (payment.status === 'overdue') {
+        monthlyTrend[monthKey].inadimplentes += parseFloat(payment.amount || '0');
+      }
+    });
+
+    return Object.values(monthlyTrend)
+      .reverse()
+      .slice(-6)
+      .map(item => ({
+        month: item.month,
+        inadimplentes: item.inadimplentes,
+        total: item.total,
+        porcentagem: item.total > 0 ? (item.inadimplentes / item.total) * 100 : 0,
+      }));
+  }, [payments]);
     const monthlyData: Record<string, { month: string; recebidos: number; pendentes: number; inadimplentes: number }> = {};
 
     payments.forEach((payment) => {
@@ -513,47 +560,123 @@ export default function FinancialPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <Card className="bg-card border-border rounded-xl">
                 <CardHeader className="border-b border-border">
-                  <CardTitle className="text-lg font-semibold tracking-tight">Status dos Pagamentos</CardTitle>
+                  <CardTitle className="text-lg font-semibold tracking-tight flex items-center gap-2">
+                    <PieChartIcon className="h-5 w-5 text-primary" />
+                    Distribuicao de Status
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">Visao geral dos pagamentos</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="space-y-4">
-                    {[
-                      { label: 'Pagos', count: payments.filter(p => p.status === 'paid').length, color: 'bg-emerald-500' },
-                      { label: 'Pendentes', count: payments.filter(p => p.status === 'pending').length, color: 'bg-amber-500' },
-                      { label: 'Atrasados', count: payments.filter(p => p.status === 'overdue').length, color: 'bg-red-500' },
-                      { label: 'Cancelados', count: payments.filter(p => p.status === 'cancelled').length, color: 'bg-zinc-400' },
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <span className="flex items-center gap-2 text-sm text-foreground">
-                          <span className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
-                          {item.label}
-                        </span>
-                        <span className="font-medium text-foreground">{item.count}</span>
+                  {pieChartData.length > 0 ? (
+                    <div className="flex items-center gap-6">
+                      <div className="h-[180px] w-[180px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={pieChartData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={80}
+                              paddingAngle={2}
+                              dataKey="value"
+                            >
+                              {pieChartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(value, name) => [`${value} pagamentos`, name]}
+                              contentStyle={{
+                                backgroundColor: '#FFFFFF',
+                                border: '1px solid rgba(0,0,0,0.06)',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex-1 space-y-3">
+                        {pieChartData.map((item, i) => (
+                          <div key={i} className="flex items-center justify-between">
+                            <span className="flex items-center gap-2 text-sm text-foreground">
+                              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                              {item.name}
+                            </span>
+                            <div className="flex items-center gap-3">
+                              <span className="font-medium text-foreground">{item.value}</span>
+                              <span className="text-xs text-muted-foreground">
+                                ({((item.value / payments.length) * 100).toFixed(1)}%)
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex h-[180px] items-center justify-center">
+                      <p className="text-muted-foreground">Sem dados para exibir</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               <Card className="bg-card border-border rounded-xl">
                 <CardHeader className="border-b border-border">
-                  <CardTitle className="text-lg font-semibold tracking-tight">Informacoes</CardTitle>
+                  <CardTitle className="text-lg font-semibold tracking-tight flex items-center gap-2">
+                    <TrendDownIcon className="h-5 w-5 text-red-500" />
+                    Tendencia de Inadimplencia
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">Evolucao mensal da inadimplencia</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between py-2 border-b border-[rgba(0,0,0,0.04)]">
-                      <span className="text-sm text-muted-foreground">Total de registros</span>
-                      <span className="font-medium text-foreground">{payments.length}</span>
+                  {lineChartData.length > 1 ? (
+                    <div className="h-[180px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={lineChartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" />
+                          <XAxis
+                            dataKey="month"
+                            tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(value) => `${value}%`}
+                          />
+                          <Tooltip
+                            formatter={(value, name) => {
+                              if (name === 'porcentagem') return [`${Number(value).toFixed(1)}%`, 'Taxa Inadimplência'];
+                              return [`R$ ${Number(value).toLocaleString('pt-BR')}`, name === 'inadimplentes' ? 'Valor Inadimplente' : 'Total'];
+                            }}
+                            contentStyle={{
+                              backgroundColor: '#FFFFFF',
+                              border: '1px solid rgba(0,0,0,0.06)',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                            }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="porcentagem"
+                            name="Taxa"
+                            stroke="#dc2626"
+                            strokeWidth={2}
+                            dot={{ fill: '#dc2626', r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
-                    <div className="flex items-center justify-between py-2 border-b border-[rgba(0,0,0,0.04)]">
-                      <span className="text-sm text-muted-foreground">Associados inadimplentes</span>
-                      <span className="font-medium text-red-600">{stats.defaultersCount}</span>
+                  ) : (
+                    <div className="flex h-[180px] items-center justify-center">
+                      <p className="text-muted-foreground">Dados insuficientes para tendencia</p>
                     </div>
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-sm text-muted-foreground">Taxa de cobranca</span>
-                      <span className="font-medium text-foreground">{stats.paymentRate.toFixed(1)}%</span>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
