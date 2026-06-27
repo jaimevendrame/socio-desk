@@ -91,38 +91,6 @@ export function validateReservationTimes(
 }
 
 /**
- * Obtém todas as reservas de um espaço em uma data específica
- */
-export async function getReservationsForDate(
-  spaceId: string,
-  date: string,
-  tenantId: string,
-  excludeId?: string
-) {
-  const conditions: any[] = [
-    eq(reservations.spaceId, spaceId),
-    eq(reservations.date, date),
-    eq(reservations.tenantId, tenantId),
-  ];
-
-  // Build the query based on whether we have an excludeId
-  const query = db
-    .select({
-      id: reservations.id,
-      spaceId: reservations.spaceId,
-      date: reservations.date,
-      startTime: reservations.startTime,
-      endTime: reservations.endTime,
-      memberId: reservations.memberId,
-      status: reservations.status,
-    })
-    .from(reservations)
-    .where(and(...conditions));
-
-  return query;
-}
-
-/**
  * Verifica se há conflitos para uma nova reserva
  * Retorna detalhes do conflito se existir
  */
@@ -248,26 +216,3 @@ export function calculateAvailableSlots(
   return slots;
 }
 
-/**
- * Verifica conflitos para uma reserva recorrente
- */
-export async function checkRecurringConflicts(
-  spaceId: string,
-  startTime: string,
-  endTime: string,
-  tenantId: string,
-  dates: string[],
-  bufferMinutes: number = DEFAULT_BUFFER_MINUTES
-): Promise<Map<string, ConflictCheck>> {
-  const results = new Map<string, ConflictCheck>();
-
-  for (const date of dates) {
-    const check = await checkConflict(
-      { spaceId, date, startTime, endTime, tenantId },
-      bufferMinutes
-    );
-    results.set(date, check);
-  }
-
-  return results;
-}

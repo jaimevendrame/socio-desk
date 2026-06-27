@@ -70,22 +70,6 @@ export function checkRateLimit(
   return { allowed, remaining, resetAt: entry.resetAt, retryAfterMs };
 }
 
-/** Add rate limit headers to a Response */
-export function addRateLimitHeaders(
-  response: Response,
-  remaining: number,
-  resetAt: number
-): Response {
-  const headers = new Headers();
-  headers.set('X-RateLimit-Remaining', String(remaining));
-  headers.set('X-RateLimit-Reset', String(Math.ceil(resetAt / 1000)));
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
 /** Cleanup old entries periodically */
 export function cleanupRateLimitStore(): void {
   const now = Date.now();

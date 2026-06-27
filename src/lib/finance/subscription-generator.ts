@@ -1,7 +1,7 @@
 import { db } from '@/lib/db/client';
-import { payments, members, tenantSettings } from '@/lib/db/schema';
+import { payments, members } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { addMonths, format, startOfMonth } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 
 export interface GenerateSubscriptionsOptions {
   tenantId: string;
@@ -95,45 +95,5 @@ export async function generateMonthlySubscriptions(
   } catch (err) {
     result.errors.push(`Erro ao gerar mensalidades: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     return result;
-  }
-}
-
-/**
- * Gera mensalidade para um membro específico
- */
-export async function generateMemberSubscription(
-  memberId: string,
-  tenantId: string,
-  options?: {
-    description?: string;
-    amount?: string;
-    dueDate?: string;
-  }
-): Promise<{ success: boolean; paymentId?: string; error?: string }> {
-  try {
-    // Buscar dados do membro
-    const [member] = await db
-      .select()
-      .from(members)
-      .where(eq(members.id, memberId));
-
-    if (!member) {
-      return { success: false, error: 'Membro não encontrado' };
-    }
-
-    const dueDate = options?.dueDate || format(new Date(new Date().getFullYear(), new Date().getMonth(), 10), 'yyyy-MM-dd');
-
-    const [payment] = await db.insert(payments).values({
-      tenantId,
-      memberId,
-      description: options?.description || `Mensalidade - ${member.name}`,
-      amount: options?.amount || (member.isBillable ? '50.00' : '0.00'),
-      dueDate,
-      status: 'pending',
-    }).returning();
-
-    return { success: true, paymentId: payment.id };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Erro desconhecido' };
   }
 }
