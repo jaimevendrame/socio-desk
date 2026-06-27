@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, pool } from '@/lib/db';
 import { members, workplaces } from '@/lib/db/schema';
 import { eq, and, like, or, desc } from 'drizzle-orm';
 import { z } from 'zod';
@@ -54,8 +54,29 @@ export async function GET(request: NextRequest) {
     const cpf = searchParams.get('cpf');
     const registrationNumber = searchParams.get('registrationNumber');
     const workplaceId = searchParams.get('workplaceId');
+    const userIdFilter = searchParams.get('userId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
+
+    // Filtro por userId: raw SQL, não precisa de tenantId
+    if (userIdFilter) {
+      try {
+        const result = await pool.query(
+          'SELECT id, name, email FROM members WHERE user_id = $1 LIMIT 1',
+          [userIdFilter],
+        );
+        if (!result.rows?.[0]) {
+          return NextResponse.json({ data: [], pagination: { page: 1, limit: 1, total: 0, totalPages: 0 } });
+        }
+        return NextResponse.json({
+          data: [result.rows[0]],
+          pagination: { page: 1, limit: 1, total: 1, totalPages: 1 },
+        });
+      } catch (err) {
+        console.error('[GET /members userIdFilter] error:', err);
+        return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+      }
+    }
 
     // Resolve tenantId: query param overrides session tenantId
     const sessionData = await getSessionWithTenant(request.headers);

@@ -9,7 +9,7 @@
  * Baseado na spec: socio-desk-spec-complementar.md §2.5-2.6
  */
 
-import { createPool } from '@/lib/db/client';
+import { pool } from '@/lib/db/client';
 import { reservationWaitlist } from '@/lib/db/schema';
 import { generateRecurringDates } from './recurring';
 import { auditLog } from '@/lib/logging';
@@ -75,7 +75,6 @@ function minutesToTime(minutes: number): string {
 export async function createReservationAtomic(
   input: CreateReservationInput
 ): Promise<CreateReservationResult> {
-  const pool = createPool();
   const client = await pool.connect();
 
   try {
@@ -295,7 +294,6 @@ export async function notifyWaitlistOnCancel(params: {
   startTime: string;
   endTime: string;
 }): Promise<{ notified: boolean; waitlistEntry?: { id: string; memberId: string; position: number } }> {
-  const pool = createPool();
   const client = await pool.connect();
 
   try {

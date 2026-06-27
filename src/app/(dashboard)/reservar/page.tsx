@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
+import { useAuth } from '@/lib/auth/client';
 
 interface Space {
   id: string;
@@ -41,12 +42,15 @@ interface ConflictInfo {
 export default function NewReservationPage() {
   const router = useRouter();
   const { tenantId } = useTenant();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [memberId, setMemberId] = useState<string | null>(null);
+  const [memberLoading, setMemberLoading] = useState(true);
   const [spacesLoading, setSpacesLoading] = useState(true);
+  const isInitialLoading = memberLoading || spacesLoading;
   const [formData, setFormData] = useState({
     spaceId: '',
     date: '',
@@ -57,34 +61,53 @@ export default function NewReservationPage() {
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
   const [showWaitlistPrompt, setShowWaitlistPrompt] = useState(false);
 
-  // Buscar membro logado e espaços do backend
+  // Buscar memberId quando user estiver disponível
   useEffect(() => {
-    async function fetchData() {
+    if (!user?.id) {
+      setMemberLoading(false);
+      return;
+    }
+    setMemberLoading(true);
+    async function fetchMemberId() {
       try {
-        setSpacesLoading(true);
-
-        // Buscar ID do membro logado
-        const meRes = await fetch('/api/members/me');
+        const meRes = await fetch(`/api/members?userId=${user.id}`, { credentials: 'include' });
         if (meRes.ok) {
           const meData = await meRes.json();
-          setMemberId(meData.data?.id || null);
+          setMemberId(meData.data?.[0]?.id || null);
+        } else {
+          console.warn('[reservar] /api/members status:', meRes.status);
         }
+      } catch (err) {
+        console.error('[reservar] fetchMemberId error:', err);
+      } finally {
+        setMemberLoading(false);
+      }
+    }
+    fetchMemberId();
+  }, [user?.id]);
 
-        // Buscar espaços
+  // Buscar espaços do backend
+  useEffect(() => {
+    async function fetchSpaces() {
+      try {
+        setSpacesLoading(true);
         const url = buildApiUrl('/api/spaces', tenantId);
-        const response = await fetch(url);
+        const response = await fetch(url, { credentials: 'include' });
         if (!response.ok) throw new Error('Erro ao carregar espaços');
         const data = await response.json();
         setSpaces(data.data || []);
       } catch (err) {
-        toast.error('Erro ao carregar dados');
+        toast.error('Erro ao carregar espaços');
       } finally {
         setIsLoading(false);
         setSpacesLoading(false);
       }
     }
-    fetchData();
+    fetchSpaces();
   }, [tenantId]);
+
+  // Quando memberLoading termina mas não encontrou memberId, o usuário não tem cadastro
+  const hasNoMember = !memberLoading && !memberId;
 
   const selectedSpace = spaces.find((s) => s.id === formData.spaceId);
   const spaceCost = selectedSpace?.hasCost && selectedSpace?.costAmount
@@ -92,8 +115,24 @@ export default function NewReservationPage() {
     : 0;
 
   const handleSubmit = async () => {
+    console.log('[reservar] handleSubmit called');
+    console.log('[reservar] memberId:', memberId, '| spaceId:', formData.spaceId, '| date:', formData.date, '| startTime:', formData.startTime, '| endTime:', formData.endTime);
+
     if (!memberId) {
       toast.error('Não foi possível identificar seu cadastro. Faça login novamente.');
+      return;
+    }
+
+    // Validar UUIDs antes de enviar
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(memberId)) {
+      console.error('[reservar] Invalid memberId:', memberId);
+      toast.error('ID do membro inválido. Faça login novamente.');
+      return;
+    }
+    if (!uuidRegex.test(formData.spaceId)) {
+      console.error('[reservar] Invalid spaceId:', formData.spaceId);
+      toast.error('Espaço inválido. Selecione novamente.');
       return;
     }
     if (!formData.spaceId || !formData.date || !formData.startTime || !formData.endTime) {
@@ -111,9 +150,23 @@ export default function NewReservationPage() {
     setShowWaitlistPrompt(false);
     try {
       const url = buildApiUrl('/api/reservations', tenantId);
+      const payload = {
+        tenantId,
+        spaceId: formData.spaceId,
+        memberId,
+        date: formData.date,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        notes: formData.notes || undefined,
+        amount: spaceCost || undefined,
+      };
+      console.log('[reservar] POST body:', JSON.stringify(payload));
+      console.log('[reservar] memberId value:', memberId, 'type:', typeof memberId);
+      console.log('[reservar] spaceId from form:', formData.spaceId, 'length:', formData.spaceId.length);
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           tenantId,
           spaceId: formData.spaceId,
@@ -127,6 +180,7 @@ export default function NewReservationPage() {
       });
 
       const errorData = await response.json();
+      console.log('[reservar] POST /api/reservations response:', response.status, JSON.stringify(errorData));
 
       if (!response.ok) {
         if (response.status === 409 && errorData.canJoinWaitlist) {
@@ -154,6 +208,7 @@ export default function NewReservationPage() {
       const response = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           spaceId: formData.spaceId,
           memberId,
@@ -400,7 +455,10 @@ export default function NewReservationPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Confirme sua Reserva</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <span>Confirme sua Reserva</span>
+                {isInitialLoading && <Loader2 className="h-5 w-5 animate-spin" />}
+              </CardTitle>
               <CardDescription>Revise os dados antes de confirmar</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -435,9 +493,12 @@ export default function NewReservationPage() {
               </div>
               <div className="flex justify-between">
                 <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-                <Button onClick={handleSubmit} disabled={submitLoading}>
-                  {submitLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  <Save className="mr-2 h-4 w-4" />
+                <Button type="button" onClick={handleSubmit} disabled={submitLoading || isInitialLoading}>
+                  {submitLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
                   Confirmar Reserva
                 </Button>
               </div>

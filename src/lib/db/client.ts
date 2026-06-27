@@ -2,8 +2,6 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
-
-// Load environment variables
 import 'dotenv/config';
 
 const globalForDb = globalThis as unknown as {
@@ -29,3 +27,6 @@ function createPool() {
 export const db = drizzle(createPool(), { schema });
 export { createPool };
 export type Database = typeof db;
+
+// Export pool directly for raw SQL (avoids drizzle wrapper issues)
+export const pool = createPool();

@@ -212,7 +212,21 @@ async function seed() {
     isActive: true,
   });
 
-  // Create some members
+  // Create member for demo user
+  await db.insert(schema.members).values({
+    tenantId: tenant.id,
+    userId: demoUser.id,
+    type: 'afiliado',
+    status: 'ativo',
+    name: 'João Silva',
+    birthDate: '1990-05-10',
+    civilState: 'solteiro',
+    cpf: '000.000.000-00',
+    email: 'joao@demo.com',
+    phoneMobile: '(11) 99999-0000',
+    admissionDate: '2024-01-01',
+    jobTitle: 'Administrador',
+  });
   const membersData = [
     {
       tenantId: tenant.id,

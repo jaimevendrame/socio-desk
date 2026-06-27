@@ -1,41 +1,122 @@
 'use client';
 
-import { useState } from 'react';
-import { Calendar, Clock, MapPin, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, Clock, MapPin, Plus, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
+import { useAuth } from '@/lib/auth/client';
 
-const mockReservations = [
-  { id: '1', space: 'Quadra Poliesportiva A', date: '24/06/2026', dayName: 'quarta-feira', time: '14:00 - 16:00', status: 'confirmada', amount: 50, paid: true },
-  { id: '2', space: 'Sala de Jogos', date: '25/06/2026', dayName: 'quinta-feira', time: '19:00 - 22:00', status: 'pendente', amount: 0, paid: false },
-  { id: '3', space: 'Churrasqueira 1', date: '01/07/2026', dayName: 'terca-feira', time: '12:00 - 18:00', status: 'confirmada', amount: 80, paid: true },
-  { id: '4', space: 'Quadra de Tenis', date: '15/06/2026', dayName: 'domingo', time: '08:00 - 10:00', status: 'concluida', amount: 30, paid: true },
-  { id: '5', space: 'Piscina', date: '10/06/2026', dayName: 'terca-feira', time: '06:00 - 08:00', status: 'concluida', amount: 25, paid: true },
-  { id: '6', space: 'Salao de Festas', date: '05/06/2026', dayName: 'quinta-feira', time: '19:00 - 23:00', status: 'cancelada', amount: 300, paid: false },
-];
+interface Reservation {
+  id: string;
+  spaceId: string;
+  spaceName: string;
+  memberId: string;
+  memberName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: 'pendente' | 'confirmada' | 'cancelada' | 'concluida';
+  notes?: string;
+  amount?: number;
+  isPaid?: boolean;
+}
 
 const statusConfig = {
-  confirmada: { label: 'Confirmada', color: 'bg-blue-100 text-blue-800' },
-  pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800' },
-  concluida: { label: 'Concluida', color: 'bg-green-100 text-green-800' },
-  cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-600' },
+  confirmada: { label: 'Confirmada', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
+  pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
+  concluida: { label: 'Concluída', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
+  cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
 };
 
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('pt-BR');
+}
+
+function getDayName(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('pt-BR', { weekday: 'long' });
+}
+
 export default function ReservationsPage() {
+  const { tenantId } = useTenant();
+  const { user } = useAuth();
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [memberId, setMemberId] = useState<string | null>(null);
   const [filter, setFilter] = useState('all');
 
-  const upcomingReservations = mockReservations.filter(
+  // Buscar memberId do usuário logado
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    async function fetchMemberId() {
+      try {
+        const res = await fetch(`/api/members?userId=${user.id}`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          setMemberId(data.data?.[0]?.id || null);
+        }
+      } catch (err) {
+        console.error('[reservas] fetchMemberId error:', err);
+      }
+    }
+    fetchMemberId();
+  }, [user?.id]);
+
+  // Buscar reservas quando tiver memberId
+  useEffect(() => {
+    if (!memberId || !tenantId) return;
+
+    async function fetchReservations() {
+      try {
+        setLoading(true);
+        const url = buildApiUrl('/api/reservations', tenantId, { memberId });
+        const res = await fetch(url, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          setReservations(data.data || []);
+        }
+      } catch (err) {
+        console.error('[reservas] fetchReservations error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchReservations();
+  }, [memberId, tenantId]);
+
+  const upcomingReservations = reservations.filter(
     (r) => ['confirmada', 'pendente'].includes(r.status)
   );
 
-  const pastReservations = mockReservations.filter(
+  const pastReservations = reservations.filter(
     (r) => ['concluida', 'cancelada'].includes(r.status)
   );
 
   const filteredUpcoming = filter === 'all' ? upcomingReservations : upcomingReservations.filter((r) => r.status === filter);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64 mt-2" />
+          </div>
+          <Skeleton className="h-10 w-36" />
+        </div>
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -80,18 +161,18 @@ export default function ReservationsPage() {
                           <MapPin className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                          <p className="font-semibold">{res.space}</p>
+                          <p className="font-semibold">{res.spaceName}</p>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Calendar className="h-4 w-4" />
-                            <span className="capitalize">{res.dayName}, {res.date}</span>
+                            <span className="capitalize">{getDayName(res.date)}, {formatDate(res.date)}</span>
                             <span>-</span>
                             <Clock className="h-4 w-4" />
-                            <span>{res.time}</span>
+                            <span>{res.startTime} - {res.endTime}</span>
                           </div>
-                          {res.amount > 0 && (
+                          {res.amount && res.amount > 0 && (
                             <div className="flex items-center gap-2 mt-1">
-                              <Badge variant={res.paid ? 'default' : 'outline'}>
-                                {res.paid ? 'Pago' : 'Pendente'}
+                              <Badge variant={res.isPaid ? 'default' : 'outline'}>
+                                {res.isPaid ? 'Pago' : 'Pendente'}
                               </Badge>
                               <span className="text-sm font-medium">R$ {res.amount.toFixed(2)}</span>
                             </div>
@@ -99,8 +180,8 @@ export default function ReservationsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge className={statusConfig[res.status as keyof typeof statusConfig].color}>
-                          {statusConfig[res.status as keyof typeof statusConfig].label}
+                        <Badge className={statusConfig[res.status].color}>
+                          {statusConfig[res.status].label}
                         </Badge>
                         {res.status === 'confirmada' && (
                           <Button variant="outline" size="sm" className="text-destructive">Cancelar</Button>
@@ -129,22 +210,22 @@ export default function ReservationsPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className={`rounded-lg p-3 ${res.status === 'concluida' ? 'bg-green-100' : 'bg-gray-100'}`}>
-                          <MapPin className={`h-6 w-6 ${res.status === 'concluida' ? 'text-green-600' : 'text-gray-600'}`} />
+                        <div className={`rounded-lg p-3 ${res.status === 'concluida' ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                          <MapPin className={`h-6 w-6 ${res.status === 'concluida' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}`} />
                         </div>
                         <div>
-                          <p className="font-semibold">{res.space}</p>
+                          <p className="font-semibold">{res.spaceName}</p>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Calendar className="h-4 w-4" />
-                            <span>{res.date}</span>
+                            <span>{formatDate(res.date)}</span>
                             <span>-</span>
                             <Clock className="h-4 w-4" />
-                            <span>{res.time}</span>
+                            <span>{res.startTime} - {res.endTime}</span>
                           </div>
                         </div>
                       </div>
-                      <Badge className={statusConfig[res.status as keyof typeof statusConfig].color}>
-                        {statusConfig[res.status as keyof typeof statusConfig].label}
+                      <Badge className={statusConfig[res.status].color}>
+                        {statusConfig[res.status].label}
                       </Badge>
                     </div>
                   </CardContent>
