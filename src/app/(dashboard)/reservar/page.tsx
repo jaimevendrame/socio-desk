@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Loader2, Calendar, Clock, MapPin, DollarSign, Check } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Calendar, Clock, MapPin, DollarSign, Check, AlertTriangle, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -30,13 +30,22 @@ const timeSlots = [
   '18:00', '19:00', '20:00', '21:00', '22:00',
 ];
 
+interface ConflictInfo {
+  id: string;
+  memberName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
 export default function NewReservationPage() {
   const router = useRouter();
   const { tenantId } = useTenant();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [spaces, setSpaces] = useState<Space[]>([]);
+  const [memberId, setMemberId] = useState<string | null>(null);
   const [spacesLoading, setSpacesLoading] = useState(true);
   const [formData, setFormData] = useState({
     spaceId: '',
@@ -45,24 +54,36 @@ export default function NewReservationPage() {
     endTime: '',
     notes: '',
   });
+  const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
+  const [showWaitlistPrompt, setShowWaitlistPrompt] = useState(false);
 
-  // Buscar espaços do backend
+  // Buscar membro logado e espaços do backend
   useEffect(() => {
-    async function fetchSpaces() {
+    async function fetchData() {
       try {
         setSpacesLoading(true);
+
+        // Buscar ID do membro logado
+        const meRes = await fetch('/api/members/me');
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          setMemberId(meData.data?.id || null);
+        }
+
+        // Buscar espaços
         const url = buildApiUrl('/api/spaces', tenantId);
         const response = await fetch(url);
         if (!response.ok) throw new Error('Erro ao carregar espaços');
         const data = await response.json();
         setSpaces(data.data || []);
       } catch (err) {
-        toast.error('Erro ao carregar espaços');
+        toast.error('Erro ao carregar dados');
       } finally {
+        setIsLoading(false);
         setSpacesLoading(false);
       }
     }
-    fetchSpaces();
+    fetchData();
   }, [tenantId]);
 
   const selectedSpace = spaces.find((s) => s.id === formData.spaceId);
@@ -71,6 +92,10 @@ export default function NewReservationPage() {
     : 0;
 
   const handleSubmit = async () => {
+    if (!memberId) {
+      toast.error('Não foi possível identificar seu cadastro. Faça login novamente.');
+      return;
+    }
     if (!formData.spaceId || !formData.date || !formData.startTime || !formData.endTime) {
       toast.error('Preencha todos os campos obrigatorios');
       return;
@@ -82,6 +107,8 @@ export default function NewReservationPage() {
     }
 
     setSubmitLoading(true);
+    setConflicts([]);
+    setShowWaitlistPrompt(false);
     try {
       const url = buildApiUrl('/api/reservations', tenantId);
       const response = await fetch(url, {
@@ -90,7 +117,7 @@ export default function NewReservationPage() {
         body: JSON.stringify({
           tenantId,
           spaceId: formData.spaceId,
-          memberId: '00000000-0000-0000-0000-000000000001', // TODO: pegar do usuário logado
+          memberId,
           date: formData.date,
           startTime: formData.startTime,
           endTime: formData.endTime,
@@ -99,8 +126,15 @@ export default function NewReservationPage() {
         }),
       });
 
+      const errorData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
+        if (response.status === 409 && errorData.canJoinWaitlist) {
+          setConflicts(errorData.conflicts || []);
+          setShowWaitlistPrompt(true);
+          setSubmitLoading(false);
+          return;
+        }
         throw new Error(errorData.error || 'Erro ao criar reserva');
       }
 
@@ -108,6 +142,32 @@ export default function NewReservationPage() {
       router.push('/dashboard');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao criar reserva');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleJoinWaitlist = async () => {
+    if (!memberId) return;
+    setSubmitLoading(true);
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spaceId: formData.spaceId,
+          memberId,
+          date: formData.date,
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Erro ao entrar na fila');
+      toast.success(data.message || 'Você entrou na fila de espera!');
+      router.push('/reservas');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao entrar na fila');
     } finally {
       setSubmitLoading(false);
     }
@@ -272,7 +332,71 @@ export default function NewReservationPage() {
         </Card>
       )}
 
-      {step === 3 && (
+      {showWaitlistPrompt && (
+        <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Horário já reservado</CardTitle>
+                <CardDescription>
+                  Este horário já está reservado. Você pode entrar na fila de espera.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {conflicts.length > 0 && (
+              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-white/60 dark:bg-black/20 p-3 space-y-2">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
+                  Reserva(s) conflitante(s):
+                </p>
+                {conflicts.map((conflict) => (
+                  <div key={conflict.id} className="flex items-center gap-4 text-sm">
+                    <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{conflict.memberName}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>{conflict.startTime} - {conflict.endTime}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowWaitlistPrompt(false);
+                  setConflicts([]);
+                  setStep(2);
+                }}
+                disabled={submitLoading}
+              >
+                Escolher outro horário
+              </Button>
+              <Button
+                onClick={handleJoinWaitlist}
+                disabled={submitLoading}
+                className="flex-1"
+              >
+                {submitLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Users className="mr-2 h-4 w-4" />
+                )}
+                Entrar na fila de espera
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 3 && !showWaitlistPrompt && (
         <div className="space-y-4">
           <Card>
             <CardHeader>

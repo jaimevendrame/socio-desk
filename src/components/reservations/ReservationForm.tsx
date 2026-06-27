@@ -155,7 +155,11 @@ export function ReservationForm({ spaceId, date, onSuccess }: ReservationFormPro
           return;
         }
 
-        throw new Error(data.error || 'Falha ao criar reserva');
+        const msg = data.details
+          ? Object.values(data.details).flat().map((e: any) => e._errors?.[0] || e).join(', ')
+          : data.error || 'Falha ao criar reserva';
+        setError(msg);
+        return;
       }
 
       setOpen(false);
