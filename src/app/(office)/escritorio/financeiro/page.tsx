@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, AlertTriangle, Loader2, BarChart3, CheckCircle, PieChart as PieChartIcon, TrendingDown as TrendDownIcon } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, AlertTriangle, Loader2, BarChart3, CheckCircle, PieChart as PieChartIcon, TrendingDown as TrendDownIcon, Download } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -67,6 +67,7 @@ export default function FinancialPage() {
     paymentRate: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
   const [monthFilter, setMonthFilter] = useState<string>(new Date().toISOString().slice(5, 7));
   const handleMonthFilterChange = (value: string | null) => {
     if (value) setMonthFilter(value);
@@ -208,6 +209,50 @@ export default function FinancialPage() {
     window.location.reload();
   };
 
+  const handleExportPDF = async () => {
+    try {
+      setExportLoading(true);
+      const url = buildApiUrl('/api/reports/financial/export-pdf', tenantId);
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) throw new Error('Erro ao exportar');
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `relatorio-financeiro-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Erro ao exportar PDF:', err);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      setExportLoading(true);
+      const url = buildApiUrl('/api/reports/financial', tenantId, { format: 'csv' });
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) throw new Error('Erro ao exportar');
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `relatorio-financeiro-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Erro ao exportar CSV:', err);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const statsData = [
     { label: 'Recebido', value: stats.totalReceived, count: payments.filter(p => p.status === 'paid').length, icon: TrendingUp, color: 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400', valueColor: 'text-emerald-600 dark:text-emerald-400' },
     { label: 'Pendente', value: stats.totalPending, count: payments.filter(p => p.status === 'pending').length, icon: DollarSign, color: 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400', valueColor: 'text-amber-600 dark:text-amber-400' },
@@ -241,6 +286,16 @@ export default function FinancialPage() {
                   <SelectItem value="04">Abril 2026</SelectItem>
                 </SelectContent>
               </Select>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleExportCSV} disabled={exportLoading || loading}>
+                  {exportLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  <span className="ml-2">CSV</span>
+                </Button>
+                <Button variant="outline" onClick={handleExportPDF} disabled={exportLoading || loading}>
+                  {exportLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  <span className="ml-2">PDF</span>
+                </Button>
+              </div>
               <RegisterPaymentDialog onSuccess={handlePaymentSuccess} />
             </div>
           </motion.div>
