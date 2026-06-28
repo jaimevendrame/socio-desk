@@ -134,12 +134,14 @@ src/components/office/members/         # Componentes de membros
 
 ---
 
-### ⚠️ M5 - Financeiro
-**Status:** ~50% Completo — APIs e components existem, cron jobs não estão wired, relatórios limitados
+### ✅ M5 - Financeiro
+**Status:** Concluído (28/06/2026)
 
 **Entregues:**
 - [x] `/escritorio/financeiro` - Dashboard financeiro com stats (recebido, pendente, inadimplentes)
 - [x] `/escritorio/financeiro` - Lista de pagamentos com filtros por status
+- [x] `/escritorio/financeiro` - Gráficos Recharts (BarChart, PieChart, LineChart)
+- [x] `/escritorio/financeiro` - Exportação CSV e PDF
 - [x] `/api/payments` - CRUD completo com estatísticas e paginação
 - [x] `/api/payments/[id]/mark-paid` - API para baixa de pagamento
 - [x] `PaymentDialog` - Componente de diálogo para registrar baixa
@@ -149,20 +151,19 @@ src/components/office/members/         # Componentes de membros
 - [x] `/api/cron/check-overdue` - Endpoint para verificar pagamentos vencidos
 - [x] `/api/cron/generate-subscriptions` - Endpoint para gerar mensalidades do mês
 - [x] `/api/reports/financial` - Relatório exportável em CSV
+- [x] `/api/reports/financial/export-pdf` - Relatório exportável em PDF
 - [x] Hook `usePayments` com tipos corretos
 - [x] Bloqueio automático de inadimplentes via cron job
 - [x] Desbloqueio automático ao quitar débitos
 
-**Pendente:**
-- [ ] Cron jobs wired (precisa de scheduler — vercel-cron ou similar)
-- [ ] Dashboard com gráficos Recharts integrados
-- [ ] Exportação PDF de relatórios
-- [ ] Integração PIX/pagamentos online (Fase 2)
+**Pendente (Fase 2):**
+- [ ] Cron jobs wired (precisa de scheduler em produção)
+- [ ] Integração PIX/pagamentos online
 
 ---
 
 ### 🚨 M6 - Polish & Deploy
-**Status:** Em progresso — gaps de segurança resolvidos, deploy próximo
+**Status:** A iniciar
 
 **✅ Gaps de segurança resolvidos (29/06/2026):**
 - [x] Auth middleware completo
