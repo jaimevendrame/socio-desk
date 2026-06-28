@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Sitemap: https://sociodesk.com.br/api/sitemap
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /

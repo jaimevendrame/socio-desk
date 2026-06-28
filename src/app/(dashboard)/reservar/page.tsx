@@ -70,7 +70,9 @@ export default function NewReservationPage() {
     setMemberLoading(true);
     async function fetchMemberId() {
       try {
-        const meRes = await fetch(`/api/members?userId=${user.id}`, { credentials: 'include' });
+        const userId = user?.id;
+        if (!userId) return;
+        const meRes = await fetch(`/api/members?userId=${userId}`, { credentials: 'include' });
         if (meRes.ok) {
           const meData = await meRes.json();
           setMemberId(meData.data?.[0]?.id || null);
