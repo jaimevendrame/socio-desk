@@ -2,7 +2,7 @@
 
 > ⚠️ **NOTA IMPORTANTE — Status Real do Projeto**
 >
-> As milestones marcadas como ✅ estão com a **UI/core funcional**, mas possuem **funcionalidades pendentes** listadas em cada seção. O projeto está em ~65% de completion do MVP.
+> As milestones marcadas como ✅ estão com a **UI/core funcionossuem **funcionalidades pendentes** listadas em cada seção. O projeto está em ~65% de completion do MVP.
 >
 > **Gaps CRÍTICOS resolvidos em 29/06/2026:**
 > 1. ✅ Auth middleware completo (`getSessionWithTenant()`)
@@ -75,8 +75,8 @@ docker-compose.yml           # Postgres + MinIO
 
 ---
 
-### ✅ M3 - Backend Essentials
-**Status:** Concluído em 01/07/2026
+### ⚠️ M3 - Backend Essentials
+**Status:** ~85% Completo — auth + RLS multi-tenant resolvidos, funcionalidades avançadas pendentes
 
 **Entregues:**
 - [x] APIs REST implementadas (members, spaces, reservations, payments)
@@ -92,22 +92,13 @@ docker-compose.yml           # Postgres + MinIO
 - [x] Rate limiting em todas as rotas
 - [x] getSessionWithTenant() — tenantId em todas as APIs
 - [x] withTenantContext() — isolamento por request
-- [x] **Importação CSV de membros** (validação CPF, duplicados, até 500 registros)
-- [x] **Upload de fotos (S3/MinIO)** (drag-drop, JPEG/PNG/WebP/GIF, 5MB)
-- [x] **CRUD Dependentes completo** (GET/POST/PATCH/DELETE /api/dependents)
-- [x] **Busca avançada** (filtros por CPF, matrícula, local de trabalho)
-- [x] **API de workplaces** (GET /api/workplaces)
 
-**Arquivos新增:**
-```
-src/app/api/members/import/route.ts    # Importação CSV
-src/app/api/dependents/route.ts        # CRUD dependentes
-src/app/api/dependents/[id]/route.ts   # CRUD dependentes [id]
-src/app/api/upload/route.ts            # Upload S3
-src/app/api/workplaces/route.ts        # Listar workplaces
-src/lib/s3/client.ts                 # Cliente S3/MinIO
-src/components/office/members/         # Componentes de membros
-```
+**Pendente:**
+- [ ] CRUD Spaces completo (PATCH/DELETE APIs)
+- [ ] Importação CSV/Excel de membros
+- [ ] Upload de fotos (S3/MinIO)
+- [ ] CRUD Dependentes completo
+- [ ] Busca avançada por CPF, matrícula, local de trabalho
 
 ---
 
@@ -134,14 +125,12 @@ src/components/office/members/         # Componentes de membros
 
 ---
 
-### ✅ M5 - Financeiro
-**Status:** Concluído (28/06/2026)
+### ⚠️ M5 - Financeiro
+**Status:** ~50% Completo — APIs e components existem, cron jobs não estão wired, relatórios limitados
 
 **Entregues:**
 - [x] `/escritorio/financeiro` - Dashboard financeiro com stats (recebido, pendente, inadimplentes)
 - [x] `/escritorio/financeiro` - Lista de pagamentos com filtros por status
-- [x] `/escritorio/financeiro` - Gráficos Recharts (BarChart, PieChart, LineChart)
-- [x] `/escritorio/financeiro` - Exportação CSV e PDF
 - [x] `/api/payments` - CRUD completo com estatísticas e paginação
 - [x] `/api/payments/[id]/mark-paid` - API para baixa de pagamento
 - [x] `PaymentDialog` - Componente de diálogo para registrar baixa
@@ -151,33 +140,41 @@ src/components/office/members/         # Componentes de membros
 - [x] `/api/cron/check-overdue` - Endpoint para verificar pagamentos vencidos
 - [x] `/api/cron/generate-subscriptions` - Endpoint para gerar mensalidades do mês
 - [x] `/api/reports/financial` - Relatório exportável em CSV
-- [x] `/api/reports/financial/export-pdf` - Relatório exportável em PDF
 - [x] Hook `usePayments` com tipos corretos
 - [x] Bloqueio automático de inadimplentes via cron job
 - [x] Desbloqueio automático ao quitar débitos
 
-**Pendente (Fase 2):**
-- [ ] Cron jobs wired (precisa de scheduler em produção)
-- [ ] Integração PIX/pagamentos online
+**Pendente:**
+- [ ] Cron jobs wired (precisa de scheduler — vercel-cron ou similar)
+- [ ] Dashboard com gráficos Recharts integrados
+- [ ] Exportação PDF de relatórios
+- [ ] Integração PIX/pagamentos online (Fase 2)
 
 ---
 
 ### 🚨 M6 - Polish & Deploy
-**Status:** A iniciar
+**Status:** ✅ Concluído em 28/06/2026
 
-**✅ Gaps de segurança resolvidos (29/06/2026):**
-- [x] Auth middleware completo
-- [x] TenantContext dinâmico (`withTenantContext()`)
-- [x] getUserRole corrigido
-- [x] RLS multi-tenant implementado (14/14 PASS)
+**✅ Correções de bugs implementadas:**
+- [x] Build passando sem erros TypeScript
+- [x] `/escritorio/espacos` - Corrigido tipo do onValueChange (Select null)
+- [x] `/escritorio/espacos` - Badge importado corretamente
+- [x] `/escritorio/espacos` - EmptyState icon prop corrigido
+- [x] `/dashboard` - Loop de animação removido (framer-motion)
+- [x] `/escritorio/associados` - DialogTrigger button-in-button corrigido
+- [x] Healthcheck endpoint (/api/health)
+- [x] Sitemap endpoint (/api/sitemap)
+- [x] OG Image endpoint (/api/og)
+- [x] PWA manifest configurado
 
 **Entregues planejadas:**
+- [x] Build passando sem erros
+- [x] Healthcheck endpoint (/api/health)
 - [ ] Testes E2E (Playwright)
 - [ ] CI/CD (GitHub Actions)
 - [ ] Deploy (Coolify/Vercel)
 - [ ] Monitoring (Sentry)
 - [ ] Dockerfile production-ready
-- [ ] Healthcheck endpoint (/api/health)
 
 **⚠️ Funcionalidades MVP ainda pendentes:**
 - [ ] CRUD Spaces completo

@@ -44,7 +44,7 @@ export function useTenant() {
 export function buildApiUrl(
   baseUrl: string,
   tenantId: string,
-  additionalParams?: Record<string, string | number | boolean>
+  additionalParams?: Record<string, string | number | boolean | null | undefined>
 ) {
   const params = new URLSearchParams({ tenantId });
   if (additionalParams) {

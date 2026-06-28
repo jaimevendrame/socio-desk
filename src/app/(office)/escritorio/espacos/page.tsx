@@ -4,50 +4,34 @@ import { useState, useEffect } from 'react';
 import { Search, Plus, Building, Clock, Users, DollarSign, MoreHorizontal, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import Link from 'next/link';
 import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
 
 interface Space {
   id: string;
   name: string;
-  description: string | null;
-  category: 'esportivo' | 'social' | 'equipamento';
-  photoUrl: string | null;
-  openTime: string;
-  closeTime: string;
-  costAmount: string | null;
-  hasCost: boolean;
-  maxAdvanceDays: number;
+  description?: string;
+  category: string;
   isActive: boolean;
-  createdAt: string;
+  capacity?: number;
 }
 
 interface SpacesApiResponse {
   data: Space[];
 }
 
-const categoryColors = {
-  esportivo: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300',
-  social: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300',
-  equipamento: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
-};
+const categories = ['Quadra', 'Sala', 'Churrasqueira', 'Piscina', 'Academia', 'Outros'];
 
-const categoryLabels = {
-  esportivo: 'Esportivo',
-  social: 'Social',
-  equipamento: 'Equipamento',
-};
-
-export default function SpacesListPage() {
+export default function SpacesPage() {
   const { tenantId } = useTenant();
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string | null>('all');
-  const [statusFilter, setStatusFilter] = useState<string | null>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -157,18 +141,20 @@ export default function SpacesListPage() {
               />
             </div>
             <div className="flex gap-2">
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value || 'all')}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Categoria" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas Categorias</SelectItem>
-                  <SelectItem value="esportivo">Esportivo</SelectItem>
-                  <SelectItem value="social">Social</SelectItem>
-                  <SelectItem value="equipamento">Equipamento</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value || 'all')}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -200,67 +186,47 @@ export default function SpacesListPage() {
             </Card>
           ))
         ) : error ? (
-          <Card className="col-span-full">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-destructive">{error}</p>
-            </CardContent>
-          </Card>
+          <ErrorState
+            message={error}
+            onRetry={() => window.location.reload()}
+            className="col-span-full"
+          />
         ) : filteredSpaces.length === 0 ? (
-          <Card className="col-span-full">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Building className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Nenhum espaço encontrado</p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            title="Nenhum espaço encontrado"
+            description="Cadastre um novo espaço ou ajuste os filtros"
+            action={{
+              label: 'Novo Espaço',
+              onClick: () => window.location.href = '/escritorio/espacos/novo',
+            }}
+            className="col-span-full"
+          />
         ) : (
           filteredSpaces.map((space) => (
             <Card key={space.id} className={!space.isActive ? 'opacity-60' : ''}>
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12 rounded-lg">
-                      <AvatarFallback className="bg-primary/10 text-primary">
-                        <Building className="h-6 w-6" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-lg">{space.name}</CardTitle>
-                      <Badge className={categoryColors[space.category as keyof typeof categoryColors]} variant="secondary">
-                        {categoryLabels[space.category as keyof typeof categoryLabels]}
-                      </Badge>
-                    </div>
+                  <div>
+                    <CardTitle className="text-base">{space.name}</CardTitle>
+                    <CardDescription>{space.category}</CardDescription>
                   </div>
                   {!space.isActive && (
-                    <Badge variant="destructive">Inativo</Badge>
+                    <Badge variant="secondary">Inativo</Badge>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
-                <CardDescription className="mb-4">{space.description}</CardDescription>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>{space.openTime} - {space.closeTime}</span>
+                {space.description && (
+                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                    {space.description}
+                  </p>
+                )}
+                {space.capacity && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Users className="h-3 w-3" />
+                    <span>Capacidade: {space.capacity}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>Antecedência máx: {space.maxAdvanceDays} dias</span>
-                  </div>
-                  {space.hasCost && space.costAmount && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <DollarSign className="h-4 w-4" />
-                      <span>R$ {parseFloat(space.costAmount).toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <Link href={`/escritorio/espacos/${space.id}`} className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full">Ver Detalhes</Button>
-                  </Link>
-                  <Button variant="outline" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
+                )}
               </CardContent>
             </Card>
           ))

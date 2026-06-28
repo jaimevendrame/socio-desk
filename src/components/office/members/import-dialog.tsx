@@ -29,10 +29,9 @@ interface ImportResult {
 
 interface ImportDialogProps {
   onImportComplete?: () => void;
-  trigger?: React.ReactNode;
 }
 
-export function ImportMembersDialog({ onImportComplete, trigger }: ImportDialogProps) {
+export function ImportMembersDialog({ onImportComplete }: ImportDialogProps) {
   const { tenantId } = useTenant();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -180,13 +179,9 @@ export function ImportMembersDialog({ onImportComplete, trigger }: ImportDialogP
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger>
-        {trigger || (
-          <Button variant="outline">
-            <Upload className="mr-2 h-4 w-4" />
-            Importar CSV
-          </Button>
-        )}
+      <DialogTrigger className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50">
+        <Upload className="mr-2 h-4 w-4" />
+        Importar CSV
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>

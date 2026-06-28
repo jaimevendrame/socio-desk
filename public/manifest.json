@@ -1,0 +1,41 @@
+{
+  "name": "Socio Desk",
+  "short_name": "SocioDesk",
+  "description": "Plataforma SaaS para gestao de clubes recreativos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Reservar",
+      "short_name": "Reservar",
+      "description": "Fazer nova reserva",
+      "url": "/dashboard/reservar"
+    },
+    {
+      "name": "Minhas Reservas",
+      "short_name": "Reservas",
+      "description": "Ver minhas reservas",
+      "url": "/dashboard/reservas"
+    }
+  ]
+}

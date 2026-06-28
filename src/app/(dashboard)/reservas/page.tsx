@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import Link from 'next/link';
 import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
 import { useAuth } from '@/lib/auth/client';
@@ -59,7 +60,9 @@ export default function ReservationsPage() {
     }
     async function fetchMemberId() {
       try {
-        const res = await fetch(`/api/members?userId=${user.id}`, { credentials: 'include' });
+        const userId = user?.id;
+        if (!userId) return;
+        const res = await fetch(`/api/members?userId=${userId}`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           setMemberId(data.data?.[0]?.id || null);
@@ -141,15 +144,15 @@ export default function ReservationsPage() {
 
         <TabsContent value="upcoming" className="space-y-4">
           {filteredUpcoming.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Nenhuma reserva upcoming</p>
-                <Link href="/reservar">
-                  <Button className="mt-4">Fazer uma reserva</Button>
-                </Link>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon="calendar"
+              title="Nenhuma reserva proxima"
+              description="Voce ainda nao tem reservas agendadas"
+              action={{
+                label: 'Fazer uma reserva',
+                onClick: () => window.location.href = '/reservar',
+              }}
+            />
           ) : (
             <div className="space-y-4">
               {filteredUpcoming.map((res) => (
@@ -197,12 +200,11 @@ export default function ReservationsPage() {
 
         <TabsContent value="past" className="space-y-4">
           {pastReservations.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Nenhuma reserva anterior</p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon="calendar"
+              title="Nenhuma reserva anterior"
+              description="Suas reservas passadas aparecerao aqui"
+            />
           ) : (
             <div className="space-y-4">
               {pastReservations.map((res) => (

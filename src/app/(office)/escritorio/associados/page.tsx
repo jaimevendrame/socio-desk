@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import Link from 'next/link';
 import { useTenant, buildApiUrl } from '@/lib/context/tenant-context';
 import { ImportMembersDialog } from '@/components/office/members/import-dialog';
@@ -310,16 +311,20 @@ export default function MembersListPage() {
                 </div>
               ))
             ) : error ? (
-              <div className="text-center py-12">
-                <p className="text-destructive">{error}</p>
-              </div>
+              <ErrorState
+                message={error}
+                onRetry={() => window.location.reload()}
+              />
             ) : filteredMembers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <p className="text-muted-foreground">Nenhum associado encontrado</p>
-                <p className="text-sm text-muted-foreground">
-                  Tente ajustar os filtros ou adicionar um novo associado
-                </p>
-              </div>
+              <EmptyState
+                icon="users"
+                title="Nenhum associado encontrado"
+                description="Tente ajustar os filtros ou cadastre um novo associado"
+                action={{
+                  label: 'Novo Associado',
+                  onClick: () => window.location.href = '/escritorio/associados/novo',
+                }}
+              />
             ) : (
               filteredMembers.map((member) => (
                 <div
