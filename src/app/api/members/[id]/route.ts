@@ -54,10 +54,11 @@ export async function GET(
     }
 
     return withTenantContext(tenantId, userId, async () => {
+      // Security: Verify member belongs to tenant
       const [member] = await db
         .select()
         .from(members)
-        .where(eq(members.id, id));
+        .where(and(eq(members.id, id), eq(members.tenantId, tenantId)));
 
       if (!member) {
         return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
@@ -122,6 +123,16 @@ export async function PUT(
     const validated = updateMemberSchema.parse(body);
 
     return withTenantContext(tenantId, userId, async () => {
+      // Security: Verify member belongs to tenant
+      const [existingMember] = await db
+        .select()
+        .from(members)
+        .where(and(eq(members.id, id), eq(members.tenantId, tenantId)));
+
+      if (!existingMember) {
+        return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
+      }
+
       const [updatedMember] = await db
         .update(members)
         .set({
@@ -170,6 +181,16 @@ export async function DELETE(
     }
 
     return withTenantContext(tenantId, userId, async () => {
+      // Security: Verify member belongs to tenant
+      const [existingMember] = await db
+        .select()
+        .from(members)
+        .where(and(eq(members.id, id), eq(members.tenantId, tenantId)));
+
+      if (!existingMember) {
+        return NextResponse.json({ error: 'Membro não encontrado' }, { status: 404 });
+      }
+
       const [deletedMember] = await db
         .delete(members)
         .where(eq(members.id, id))

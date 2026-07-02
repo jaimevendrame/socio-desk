@@ -29,23 +29,23 @@ export async function GET(request: NextRequest) {
         { status: 429, headers: { 'Retry-After': String(retryAfter), 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': String(Math.ceil(rl.resetAt / 1000)) } }
       );
     }
+    const sessionData = await getSessionWithTenant(request.headers);
+    const sessionTenantId = sessionData?.user.tenantId;
+
+    // Security: Use ONLY tenantId from session, never from query/body
+    const resolvedTenantId = sessionTenantId;
+
+    if (!resolvedTenantId) {
+      return NextResponse.json({ error: 'tenantId é obrigatório' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
-    let tenantId = searchParams.get('tenantId');
     const memberId = searchParams.get('memberId');
     const status = searchParams.get('status');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
-
-    // Resolve tenantId from session (with DB lookup for tenant_id)
-    const sessionData = await getSessionWithTenant(request.headers);
-    const sessionTenantId = sessionData?.user.tenantId;
-    const resolvedTenantId = tenantId || sessionTenantId;
-
-    if (!resolvedTenantId) {
-      return NextResponse.json({ error: 'tenantId é obrigatório' }, { status: 400 });
-    }
 
     const userId = sessionData?.user.id;
 
@@ -173,11 +173,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = createPaymentSchema.parse(body);
 
-    // Security: ensure tenantId from body matches session
-    if (validated.tenantId !== tenantId) {
-      return NextResponse.json({ error: 'tenantId mismatch' }, { status: 403 });
-    }
-
+    // Security: Always use tenantId from session, ignore any in body
     return withTenantContext(tenantId, userId, async () => {
       const [newPayment] = await db
         .insert(payments)
