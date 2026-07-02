@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { dependents } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { dependents, members } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { withTenantContext } from '@/lib/db/tenant-context';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { getSessionWithTenant } from '@/lib/auth/session-with-tenant';
+
+// Security: Verify dependent belongs to tenant
+async function verifyDependentBelongsToTenant(dependentId: string, tenantId: string) {
+  const [dependent] = await db
+    .select()
+    .from(dependents)
+    .innerJoin(members, eq(dependents.memberId, members.id))
+    .where(and(eq(dependents.id, dependentId), eq(members.tenantId, tenantId)))
+    .limit(1);
+  return !!dependent;
+}
 
 const updateDependentSchema = z.object({
   type: z.enum(['conjuge', 'filho', 'enteado', 'pais', 'irmao', 'outro']).optional(),
@@ -53,15 +64,17 @@ export async function GET(
     }
 
     const response = await withTenantContext(tenantId, userId, async () => {
+      // Security: Verify dependent belongs to tenant
+      const isOwner = await verifyDependentBelongsToTenant(id, tenantId);
+      if (!isOwner) {
+        return NextResponse.json({ error: 'Dependente não encontrado' }, { status: 404 });
+      }
+
       const result = await db
         .select()
         .from(dependents)
         .where(eq(dependents.id, id))
         .limit(1);
-
-      if (result.length === 0) {
-        return NextResponse.json({ error: 'Dependente não encontrado' }, { status: 404 });
-      }
 
       return NextResponse.json(result[0]);
     });
@@ -111,15 +124,17 @@ export async function PATCH(
     const validated = updateDependentSchema.parse(body);
 
     const response = await withTenantContext(tenantId, userId, async () => {
+      // Security: Verify dependent belongs to tenant
+      const isOwner = await verifyDependentBelongsToTenant(id, tenantId);
+      if (!isOwner) {
+        return NextResponse.json({ error: 'Dependente não encontrado' }, { status: 404 });
+      }
+
       const [updated] = await db
         .update(dependents)
         .set(validated)
         .where(eq(dependents.id, id))
         .returning();
-
-      if (!updated) {
-        return NextResponse.json({ error: 'Dependente não encontrado' }, { status: 404 });
-      }
 
       return NextResponse.json(updated);
     });
@@ -169,14 +184,16 @@ export async function DELETE(
     }
 
     const response = await withTenantContext(tenantId, userId, async () => {
+      // Security: Verify dependent belongs to tenant
+      const isOwner = await verifyDependentBelongsToTenant(id, tenantId);
+      if (!isOwner) {
+        return NextResponse.json({ error: 'Dependente não encontrado' }, { status: 404 });
+      }
+
       const [deleted] = await db
         .delete(dependents)
         .where(eq(dependents.id, id))
         .returning();
-
-      if (!deleted) {
-        return NextResponse.json({ error: 'Dependente não encontrado' }, { status: 404 });
-      }
 
       return NextResponse.json({ message: 'Dependente removido com sucesso' });
     });

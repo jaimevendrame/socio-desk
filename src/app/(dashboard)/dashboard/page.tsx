@@ -4,8 +4,6 @@ import { Calendar, Clock, Users, CheckCircle, ChevronRight } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { StaggerContainer, fadeVariants, MotionCard } from '@/components/animations/fade-in';
 
 // Mock data
 const upcomingReservations = [
@@ -50,23 +48,21 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <StaggerContainer>
-          <motion.div variants={fadeVariants}>
-            <div className="label mb-1 text-muted-foreground">Dashboard</div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-              Bem-vindo, Joao
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Acompanhe suas reservas e atividades recentes
-            </p>
-          </motion.div>
-        </StaggerContainer>
+        <div>
+          <div className="label mb-1 text-muted-foreground">Dashboard</div>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            Bem-vindo, Joao
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Acompanhe suas reservas e atividades recentes
+          </p>
+        </div>
 
         {/* Stats Grid */}
-        <StaggerContainer className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, i) => (
-            <motion.div key={i} variants={fadeVariants}>
-              <MotionCard className="bg-card border-border rounded-xl p-5">
+            <div key={i}>
+              <Card className="bg-card border-border rounded-xl p-5">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-2xl font-semibold tracking-tight text-foreground">{stat.value}</p>
@@ -76,10 +72,10 @@ export default function DashboardPage() {
                     <stat.icon className="h-5 w-5" />
                   </div>
                 </div>
-              </MotionCard>
-            </motion.div>
+              </Card>
+            </div>
           ))}
-        </StaggerContainer>
+        </div>
 
         {/* Main Content */}
         <div className="grid lg:grid-cols-5 gap-6">
@@ -99,11 +95,10 @@ export default function DashboardPage() {
               </Link>
             </CardHeader>
             <CardContent className="p-6">
-              <StaggerContainer className="space-y-3">
+              <div className="space-y-3">
                 {upcomingReservations.map((reservation) => (
-                  <motion.div
+                  <div
                     key={reservation.id}
-                    variants={fadeVariants}
                     className="flex items-center justify-between p-4 rounded-xl border-border hover:border-border-hover hover:bg-muted/50 transition-all"
                   >
                     <div className="flex items-center gap-4">
@@ -130,9 +125,9 @@ export default function DashboardPage() {
                     >
                       {reservation.status === 'confirmada' ? 'Confirmada' : 'Pendente'}
                     </Badge>
-                  </motion.div>
+                  </div>
                 ))}
-              </StaggerContainer>
+              </div>
 
               <Link
                 href="/reservar"
@@ -153,9 +148,8 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="p-4 space-y-1">
                 {notifications.map((notification) => (
-                  <motion.div
+                  <div
                     key={notification.id}
-                    variants={fadeVariants}
                     className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${
                       notification.unread ? 'dark:bg-emerald-500/5 bg-emerald-500/5' : ''
                     }`}
@@ -170,7 +164,7 @@ export default function DashboardPage() {
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">{notification.time}</p>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </CardContent>
             </Card>
@@ -186,7 +180,7 @@ export default function DashboardPage() {
                   { href: '/perfil', icon: Users, label: 'Gerenciar Dependentes', color: 'dark:bg-blue-500/10 dark:text-blue-400 bg-blue-500/10 text-blue-600' },
                   { href: '/perfil/senha', icon: CheckCircle, label: 'Alterar Senha', color: 'dark:bg-amber-500/10 dark:text-amber-400 bg-amber-500/10 text-amber-600' },
                 ].map((action, i) => (
-                  <motion.div key={i} variants={fadeVariants}>
+                  <div key={i}>
                     <Link
                       href={action.href}
                       className="flex items-center gap-3 p-3 rounded-xl border-border hover:border-border-hover hover:bg-muted/50 transition-all"
@@ -196,7 +190,7 @@ export default function DashboardPage() {
                       </div>
                       <span className="font-medium text-foreground">{action.label}</span>
                     </Link>
-                  </motion.div>
+                  </div>
                 ))}
               </CardContent>
             </Card>

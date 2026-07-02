@@ -8,6 +8,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tenants, teamMembers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { generateSEO } from "@/lib/seo";
+import { ServiceWorkerProvider } from "@/lib/service-worker";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -20,21 +22,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "Socio Desk",
-    template: "%s | Socio Desk",
-  },
-  description: "Plataforma SaaS multi-tenant para gestao de reservas, associados e financas de clubes recreivos.",
-  icons: {
-    icon: [
-      {
-        url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏌️</text></svg>",
-        type: "image/svg+xml",
-      },
-    ],
-  },
-};
+const APP_NAME = "Socio Desk";
+const APP_DESCRIPTION = "Plataforma SaaS multi-tenant para gestão de reservas, associados e finanças de clubes recreativos.";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://sociodesk.com.br";
+
+export const metadata: Metadata = generateSEO({
+  title: "Socio Desk",
+  description: APP_DESCRIPTION,
+});
 
 const DEFAULT_TENANT = {
   tenantId: "1bdd8429-6dce-42ea-bf5b-6dc39a7a5490",
@@ -123,12 +118,21 @@ export default async function RootLayout({
 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#2563eb" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Socio Desk" />
+      </head>
       <body className={`${inter.variable} ${geistMono.variable} min-h-screen antialiased font-sans`}>
-        <AuthProvider initialSession={initialSession}>
-          <TenantProvider initialTenant={initialTenant}>
-            {children}
-          </TenantProvider>
-        </AuthProvider>
+        <ServiceWorkerProvider>
+          <AuthProvider initialSession={initialSession}>
+            <TenantProvider initialTenant={initialTenant}>
+              {children}
+            </TenantProvider>
+          </AuthProvider>
+        </ServiceWorkerProvider>
       </body>
     </html>
   );

@@ -156,15 +156,17 @@ export default function FinancialPage() {
         porcentagem: item.total > 0 ? (item.inadimplentes / item.total) * 100 : 0,
       }));
   }, [payments]);
-    const monthlyData: Record<string, { month: string; recebidos: number; pendentes: number; inadimplentes: number }> = {};
+
+  const monthlyData = useMemo(() => {
+    const data: Record<string, { month: string; recebidos: number; pendentes: number; inadimplentes: number }> = {};
 
     payments.forEach((payment) => {
       const date = new Date(payment.dueDate);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const monthLabel = date.toLocaleDateString('pt-BR', { month: 'short' });
 
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = {
+      if (!data[monthKey]) {
+        data[monthKey] = {
           month: monthLabel,
           recebidos: 0,
           pendentes: 0,
@@ -175,18 +177,18 @@ export default function FinancialPage() {
       const amount = parseFloat(payment.amount || '0');
       switch (payment.status) {
         case 'paid':
-          monthlyData[monthKey].recebidos += amount;
+          data[monthKey].recebidos += amount;
           break;
         case 'pending':
-          monthlyData[monthKey].pendentes += amount;
+          data[monthKey].pendentes += amount;
           break;
         case 'overdue':
-          monthlyData[monthKey].inadimplentes += amount;
+          data[monthKey].inadimplentes += amount;
           break;
       }
     });
 
-    return Object.values(monthlyData).reverse().slice(-6);
+    return Object.values(data).reverse().slice(-6);
   }, [payments]);
 
   const defaulters = payments
@@ -516,10 +518,10 @@ export default function FinancialPage() {
               <CardContent className="p-6">
                 {loading ? (
                   <Skeleton className="h-[300px] w-full rounded-xl" />
-                ) : chartData.length > 0 ? (
+                ) : monthlyData.length > 0 ? (
                   <div className="h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" />
                         <XAxis
                           dataKey="month"
